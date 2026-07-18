@@ -1,91 +1,8 @@
-# 中文朗讀 (TW Read Aloud)
+# Hans TW TTS
 
-> English below · 中文在下方
+> 中文為主 · English below
 
-An Obsidian plugin that reads your notes aloud using your device's **built-in Traditional Chinese system voice**, with **sentence-by-sentence highlight follow**. Free, offline, and cross-platform. UI in Traditional Chinese.
-
-給台灣使用者的 Obsidian 語音朗讀外掛:用**各平台系統內建的中文語音**把筆記唸出來,**逐句反白跟讀**。免費、離線、跨平台,介面全繁體中文。
-
-It uses the browser's Web Speech API and each platform's system voices, so it does **not** depend on any external server.
-它走瀏覽器內建 Web Speech API 與系統語音,**不依賴任何外部伺服器**。
-
----
-
-## English
-
-### Features
-
-- Read the current note aloud, or read only the selected text
-- A dedicated **reader pane** shows the note sentence by sentence; the sentence being read is highlighted and auto-scrolled into view
-- Play / Pause / Resume / Stop / Previous sentence / Next sentence
-- Click any sentence in the pane to start reading from there
-- Settings: choose a voice (defaults to a Traditional Chinese voice) and adjust speed
-- Traditional Chinese interface
-
-### Installation
-
-**A. Community Plugins (once approved)**
-Settings → Community plugins → Browse → search "TW Read Aloud" or "中文朗讀" → Install → Enable.
-
-**B. BRAT (works now, desktop and mobile)**
-1. Install the **BRAT** plugin (Obsidian42 - BRAT) from Community plugins and enable it.
-2. Command palette → "BRAT: Add a beta plugin".
-3. Paste `hansai-art/obsidian-tw-tts` and confirm.
-4. Enable "中文朗讀 (TW Read Aloud)" in Community plugins.
-
-**C. Manual**
-Download `main.js`, `manifest.json`, `styles.css` from the [latest release](https://github.com/hansai-art/obsidian-tw-tts/releases), put them in `<vault>/.obsidian/plugins/tw-read-aloud/`, then enable the plugin. On mobile the `.obsidian` folder is hidden, so BRAT is usually easier.
-
-### How to use
-
-Read the current note (any of these):
-
-1. Click the speaker icon in the left ribbon
-2. Click "🔊 朗讀" in the status bar (bottom of the window)
-3. Command palette (`Cmd/Ctrl + P`) → "朗讀目前筆記" (Read current note)
-
-Other:
-
-- Select text → command palette → "朗讀選取文字" (Read selection) to read only the selection
-- The **reader pane** opens on the right and shows the note sentence by sentence; the current sentence is highlighted
-- Control bar: Previous / Play-Pause / Stop / Next
-- Click any sentence in the pane to start from there
-- "停止朗讀" (Stop) stops at any time
-
-### Settings
-
-Settings → Community plugins → 中文朗讀:
-
-- **Voice**: default "自動(台灣中文優先)" (auto, Traditional Chinese first). The dropdown lists all system voices.
-- **Speed**: 0.5 (slowest) to 2.0 (fastest).
-
-### Platform support
-
-| Platform | Support | Notes |
-|---|---|---|
-| macOS | ✅ | Uses built-in Chinese voices |
-| Windows | ✅ | Requires a Chinese voice installed in the system |
-| iPhone / iPad | ✅ | Uses iOS built-in Chinese voices |
-| Android | ⚠️ Best effort | Depends on the device WebView and whether a Chinese TTS voice is installed; may not work |
-
-### No Chinese voice found?
-
-The plugin shows a notice if no Chinese voice is available. Install one in your system:
-
-- **macOS**: System Settings → Accessibility → Spoken Content → System Voice, add Chinese (Taiwan)
-- **Windows**: Settings → Time & Language → Speech, add a Chinese voice
-- **iPhone / iPad**: Settings → Accessibility → Spoken Content → Voices → Chinese, download a voice
-- **Android**: Settings → System → Text-to-speech output, install Chinese voice data
-
-### Development
-
-- TypeScript + esbuild. `npm run dev` to watch-build, `npm run build` for a production build.
-- `npm test` runs unit tests (Node built-in test runner via tsx).
-- Pure logic (`sentence-splitter`, `tts-engine`, `voice-utils`) is decoupled from Obsidian and unit-tested.
-
-### License
-
-MIT. Original code; not derived from any AGPL project.
+給台灣使用者的 Obsidian 語音朗讀外掛:用**各平台系統內建的中文語音**把筆記唸出來,**逐句反白跟讀**。免費、離線、跨平台,介面全繁體中文。走瀏覽器內建 Web Speech API 與系統語音,**不依賴任何外部伺服器**。
 
 ---
 
@@ -103,13 +20,13 @@ MIT. Original code; not derived from any AGPL project.
 ### 安裝
 
 **A. 官方社群外掛(審核通過後)**
-設定 → 社群外掛 → 瀏覽 → 搜「中文朗讀」或「TW Read Aloud」→ 安裝 → 啟用。
+設定 → 社群外掛 → 瀏覽 → 搜「Hans TW TTS」→ 安裝 → 啟用。
 
 **B. BRAT(現在就能用,電腦與手機都可)**
 1. 在社群外掛安裝 **BRAT**(Obsidian42 - BRAT)並啟用。
 2. 命令面板 →「BRAT: Add a beta plugin」。
 3. 貼上 `hansai-art/obsidian-tw-tts`,確認。
-4. 回社群外掛啟用「中文朗讀 (TW Read Aloud)」。
+4. 回社群外掛啟用「Hans TW TTS」。
 
 **C. 手動**
 到 [最新 release](https://github.com/hansai-art/obsidian-tw-tts/releases) 下載 `main.js`、`manifest.json`、`styles.css`,放進 `<vault>/.obsidian/plugins/tw-read-aloud/`,再啟用外掛。手機上 `.obsidian` 是隱藏資料夾,通常用 BRAT 較方便。
@@ -132,7 +49,7 @@ MIT. Original code; not derived from any AGPL project.
 
 ### 設定
 
-設定 → 社群外掛 → 中文朗讀:
+設定 → 社群外掛 → Hans TW TTS:
 
 - **語音**:預設「自動(台灣中文優先)」。下拉可改成系統裡任一語音。
 - **語速**:0.5(最慢)到 2.0(最快)。
@@ -164,3 +81,38 @@ MIT. Original code; not derived from any AGPL project.
 ### 授權
 
 MIT。原創程式碼,不衍生自任何 AGPL 專案。
+
+---
+
+## English
+
+An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using your device's **built-in Traditional Chinese system voice**, with **sentence-by-sentence highlight follow**. Free, offline, cross-platform. It uses the Web Speech API and each platform's system voices, so it does **not** depend on any external server.
+
+### Features
+
+- Read the current note aloud, or read only the selected text
+- A dedicated **reader pane** shows the note sentence by sentence; the sentence being read is highlighted and auto-scrolled into view
+- Play / Pause / Resume / Stop / Previous / Next sentence
+- Click any sentence in the pane to start reading from there
+- Settings: choose a voice (defaults to a Traditional Chinese voice) and adjust speed
+- Traditional Chinese interface
+
+### Installation
+
+**A. Community Plugins (once approved):** Settings → Community plugins → Browse → search "Hans TW TTS" → Install → Enable.
+
+**B. BRAT (works now, desktop and mobile):** Install the BRAT plugin, then command palette → "BRAT: Add a beta plugin" → paste `hansai-art/obsidian-tw-tts` → enable "Hans TW TTS".
+
+**C. Manual:** Download `main.js`, `manifest.json`, `styles.css` from the [latest release](https://github.com/hansai-art/obsidian-tw-tts/releases) into `<vault>/.obsidian/plugins/tw-read-aloud/`, then enable the plugin.
+
+### Usage
+
+Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection. The reader pane opens on the right and highlights each sentence as it is read; click any sentence to start from there. "停止朗讀" stops playback.
+
+### Platform support
+
+macOS ✅ · Windows ✅ · iPhone/iPad ✅ · Android ⚠️ best effort (depends on the device WebView and whether a Chinese TTS voice is installed).
+
+### License
+
+MIT. Original code; not derived from any AGPL project.
