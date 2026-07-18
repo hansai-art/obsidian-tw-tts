@@ -51,8 +51,9 @@
 
 設定 → 社群外掛 → Hans TW TTS:
 
-- **語音**:預設「自動(台灣中文優先)」。下拉可改成系統裡任一語音。
-- **語速**:0.5(最慢)到 2.0(最快)。
+- **語音**:預設「自動(台灣中文優先)」。下拉可改成系統裡任一語音;每個語音都標了男/女標籤。
+- **偏好聲音性別**:不限 / 女聲 / 男聲。語音設為「自動」時,優先挑這個性別的台灣中文語音。
+- **語速**:0.5(最慢)到 2.0(最快)。旁邊的**試聽**鈕會用目前設定唸一句範例。
 
 ### 平台支援
 
@@ -108,6 +109,8 @@ An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using
 ### Usage
 
 Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection. The reader pane opens on the right and highlights each sentence as it is read; click any sentence to start from there. "停止朗讀" stops playback.
+
+Settings let you pick a voice (each labelled male/female), set a preferred gender for the auto-picked Traditional Chinese voice, adjust speed (0.5x–2.0x), and hit the preview button to hear a sample with the current settings.
 
 ### Platform support
 
