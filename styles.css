@@ -70,3 +70,24 @@
 	text-align: center;
 	line-height: 1.7;
 }
+
+/* 設定頁內建教學 */
+.tw-tts-help {
+	margin: 0.4em 0 1.2em;
+	padding-left: 1.5em;
+	line-height: 1.65;
+}
+
+.tw-tts-help li {
+	margin-bottom: 0.6em;
+}
+
+.tw-tts-help-zh {
+	color: var(--text-normal);
+}
+
+.tw-tts-help-en {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	margin-top: 2px;
+}

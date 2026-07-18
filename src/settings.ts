@@ -91,6 +91,31 @@ export class TwTtsSettingTab extends PluginSettingTab {
 					.setTooltip(STRINGS.previewButton)
 					.onClick(() => this.preview());
 			});
+
+		this.renderHelp(containerEl);
+	}
+
+	/** 設定頁底部的內建教學(中文為主、英文為輔)。 */
+	private renderHelp(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName(STRINGS.help.heading).setHeading();
+
+		const list = containerEl.createEl('ol', { cls: 'tw-tts-help' });
+		for (const step of STRINGS.help.steps) {
+			const li = list.createEl('li');
+			li.createEl('div', { cls: 'tw-tts-help-zh', text: step.zh });
+			li.createEl('div', { cls: 'tw-tts-help-en', text: step.en });
+		}
+
+		new Setting(containerEl).setName(STRINGS.help.noVoiceHeading).setHeading();
+		const hints = containerEl.createEl('ul', { cls: 'tw-tts-help' });
+		for (const hint of [
+			STRINGS.installHintMac,
+			STRINGS.installHintWin,
+			STRINGS.installHintIos,
+			STRINGS.installHintAndroid,
+		]) {
+			hints.createEl('li', { text: hint });
+		}
 	}
 
 	/** 用目前設定(語音 / 性別 / 語速)唸一句範例。 */

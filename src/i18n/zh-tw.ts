@@ -53,4 +53,32 @@ export const STRINGS = {
 	previewButton: '試聽',
 	previewSample: '你好,這是台灣中文語音測試。一二三四五。',
 	previewNoVoice: '找不到可用的中文語音,無法試聽。',
+
+	// 設定頁內建教學(中英文)
+	help: {
+		heading: '使用教學 · How to use',
+		steps: [
+			{
+				zh: '朗讀整篇:點左側工具列的喇叭圖示,或執行命令「朗讀目前筆記」。',
+				en: 'Read the whole note: click the speaker icon in the left ribbon, or run the "朗讀目前筆記" (Read current note) command.',
+			},
+			{
+				zh: '朗讀選取:先選一段文字,再執行命令「朗讀選取文字」,只唸選取範圍。',
+				en: 'Read a selection: select some text, then run the "朗讀選取文字" (Read selection) command.',
+			},
+			{
+				zh: '跟讀窗格:右側會開朗讀窗格並逐句反白;點任一句可從那句開始唸。',
+				en: 'Follow-along pane: a reader pane opens on the right and highlights each sentence; click any sentence to start from there.',
+			},
+			{
+				zh: '控制:窗格內有播放、暫停、繼續、上一句、下一句、停止。',
+				en: 'Controls: play, pause, resume, previous, next and stop inside the pane.',
+			},
+			{
+				zh: '調整聲音:上方可選語音、偏好男聲/女聲、拉語速,按「試聽」先聽一句。',
+				en: 'Tune the voice: pick a voice, prefer male/female, adjust speed above, and press 試聽 (Preview) to sample it.',
+			},
+		],
+		noVoiceHeading: '沒有聲音?請先在系統安裝中文語音 · No sound? Install a Chinese voice first',
+	},
 } as const;
