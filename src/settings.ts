@@ -15,11 +15,20 @@ export interface TwTtsSettings {
 	voiceName: string;
 	/** 語速倍率 0.5 ~ 2.0。 */
 	rate: number;
+	/** 單篇讀完自動唸同資料夾下一篇。 */
+	autoNextInFolder: boolean;
+	/** 右鍵資料夾連播時是否遞迴子資料夾。 */
+	folderQueueRecursive: boolean;
+	/** 發音字典原始規則字串(一行一條「原文=唸法」)。 */
+	pronunciationRules: string;
 }
 
 export const DEFAULT_SETTINGS: TwTtsSettings = {
 	voiceName: '',
 	rate: 1.0,
+	autoNextInFolder: false,
+	folderQueueRecursive: false,
+	pronunciationRules: '',
 };
 
 export class TwTtsSettingTab extends PluginSettingTab {
@@ -82,6 +91,42 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				btn.setIcon('play')
 					.setTooltip(STRINGS.previewButton)
 					.onClick(() => this.preview());
+			});
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingAutoNext)
+			.setDesc(STRINGS.settingAutoNextDesc)
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.autoNextInFolder);
+				tg.onChange(async (val) => {
+					this.plugin.settings.autoNextInFolder = val;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingFolderRecursive)
+			.setDesc(STRINGS.settingFolderRecursiveDesc)
+			.addToggle((tg) => {
+				tg.setValue(this.plugin.settings.folderQueueRecursive);
+				tg.onChange(async (val) => {
+					this.plugin.settings.folderQueueRecursive = val;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingPronunciation)
+			.setDesc(STRINGS.settingPronunciationDesc)
+			.addTextArea((ta) => {
+				ta.setPlaceholder(STRINGS.settingPronunciationPlaceholder)
+					.setValue(this.plugin.settings.pronunciationRules);
+				ta.inputEl.rows = 6;
+				ta.inputEl.addClass('tw-tts-pronunciation-input');
+				ta.onChange(async (val) => {
+					this.plugin.settings.pronunciationRules = val;
+					await this.plugin.saveSettings();
+				});
 			});
 
 		this.renderHelp(containerEl);

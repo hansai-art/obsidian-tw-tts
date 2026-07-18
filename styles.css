@@ -7,6 +7,21 @@
 	padding: 0;
 }
 
+.tw-tts-title {
+	padding: 10px 12px 0;
+	font-size: var(--font-ui-small);
+	font-weight: 600;
+	color: var(--text-normal);
+	text-align: center;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tw-tts-hidden {
+	display: none;
+}
+
 .tw-tts-controls {
 	position: sticky;
 	top: 0;
@@ -146,4 +161,11 @@
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	margin-top: 2px;
+}
+
+.tw-tts-pronunciation-input {
+	width: 100%;
+	min-height: 7em;
+	font-family: var(--font-monospace);
+	resize: vertical;
 }

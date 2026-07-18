@@ -3,8 +3,11 @@ export const STRINGS = {
 	// 命令
 	cmdReadNote: '朗讀目前筆記',
 	cmdReadSelection: '朗讀選取文字',
+	cmdReadFromCursor: '從游標處開始唸',
+	cmdReadFolder: '朗讀目前資料夾',
 	cmdStop: '停止朗讀',
 	cmdOpenReader: '開啟朗讀窗格',
+	menuReadFolder: '朗讀此資料夾',
 
 	// ribbon / 狀態列
 	ribbonTooltip: '朗讀本篇',
@@ -29,6 +32,7 @@ export const STRINGS = {
 	noContent: '這篇筆記沒有可朗讀的內容。',
 	noActiveNote: '請先開啟一篇筆記。',
 	noSelection: '請先選取要朗讀的文字。',
+	noFolderNotes: '這個資料夾沒有可朗讀的筆記。',
 	noChineseVoice: '找不到中文語音,請先在系統安裝中文語音:',
 	installHintMac: 'macOS:系統設定 → 輔助使用 → 朗讀內容 → 系統聲音,加入中文(台灣)。',
 	installHintWin: 'Windows:設定 → 時間與語言 → 語音,新增中文語音。',
@@ -45,6 +49,14 @@ export const STRINGS = {
 	settingRateDesc: '朗讀速度倍率:0.5 最慢,2.0 最快。',
 	settingRateReset: '回到預設(1.0x)',
 	settingNoVoices: '目前偵測不到任何語音,請確認系統已安裝語音。',
+	settingAutoNext: '單篇讀完自動下一篇',
+	settingAutoNextDesc: '朗讀完一篇後,自動接著唸同資料夾的下一篇筆記。',
+	settingFolderRecursive: '資料夾連播含子資料夾',
+	settingFolderRecursiveDesc: '右鍵「朗讀此資料夾」時,是否也包含子資料夾內的筆記。',
+	settingPronunciation: '發音字典',
+	settingPronunciationDesc:
+		'一行一條,格式「原文=唸法」,# 開頭為註解。只改朗讀發音,畫面仍顯示原文。',
+	settingPronunciationPlaceholder: 'iPAS=愛帕斯\nGPT=G P T\n臺=台\n# 這行是註解',
 	// 試聽
 	previewButton: '試聽',
 	previewSample: '你好,這是台灣中文語音測試。一二三四五。',

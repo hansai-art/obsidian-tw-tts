@@ -10,9 +10,11 @@
 
 ### 功能
 
-- 一鍵朗讀目前筆記,或只朗讀選取的文字
+- 一鍵朗讀目前筆記,或只朗讀選取的文字,或**從游標處開始唸**
+- **資料夾連播**:右鍵資料夾一次唸完整個資料夾,可設定讀完自動下一篇
+- **發音字典**:自訂破音字 / 專有名詞唸法(iPAS、臺、GPT…),全 Obsidian TTS 外掛獨家
 - 獨立**朗讀窗格**逐句顯示筆記;唸到哪句那句就反白 + 自動捲到可視範圍
-- 播放 / 暫停 / 繼續 / 停止 / 上一句 / 下一句
+- 播放 / 暫停 / 繼續 / 停止 / 上一句 / 下一句;播放當下可調語速
 - 點窗格裡任一句,從那句開始唸
 - 設定:選語音(清單依品質排序,預設自動挑最佳)、調語速
 - 全繁體中文介面
@@ -42,7 +44,9 @@
 其他:
 
 - 選取一段文字 → 命令面板「朗讀選取文字」,只唸選取的
-- 右側會開**朗讀窗格**,逐句顯示;唸到的那句會反白
+- **從游標處開始唸**:命令面板「從游標處開始唸」,從游標所在的那句起讀
+- **資料夾連播**:檔案總管右鍵資料夾 →「朗讀此資料夾」,一篇接一篇連續唸(命令面板「朗讀目前資料夾」亦可)
+- 右側會開**朗讀窗格**,逐句顯示;唸到的那句會反白;連播時頂端顯示篇名與進度(2/5)
 - 控制列:上一句 / 播放暫停 / 停止 / 下一句
 - 點窗格裡任一句 → 從那句開始唸
 - 命令面板「停止朗讀」可隨時停
@@ -54,6 +58,9 @@
 - **語音**:預設「自動(推薦最佳語音)」。下拉清單依品質排序,最上面是目前平台最推薦的(台灣中文優先),並標了地區(台灣/大陸/香港)。品質太差或重複的角色/機械音會自動壓到最後或隱藏。
 - **語速**:0.5(最慢)到 2.0(最快)。旁邊有**回到預設(1.0x)**與**試聽**兩顆按鈕。
 - **播放當下也能調語速**:朗讀窗格控制列有 `−  1.0x  +`,點中間數字即回到 1.0x。
+- **單篇讀完自動下一篇**:開啟後,唸完一篇會自動接著唸同資料夾的下一篇。
+- **資料夾連播含子資料夾**:右鍵連播時是否也含子資料夾內的筆記(預設只該層)。
+- **發音字典**:一行一條「原文=唸法」(`#` 開頭為註解),校正破音字與專有名詞。例:`iPAS=愛帕斯`、`臺=台`。只改朗讀發音,畫面仍顯示原文。
 
 ### 平台支援
 
@@ -108,9 +115,9 @@ An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using
 
 ### Usage
 
-Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection. The reader pane opens on the right and highlights each sentence as it is read; click any sentence to start from there. "停止朗讀" stops playback.
+Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection, or "從游標處開始唸" to start from the sentence at your cursor. Right-click a folder → "朗讀此資料夾" to play every note in it back-to-back. The reader pane opens on the right, highlights each sentence as it is read (with the note title + position when playing a folder), and click any sentence to start from there. "停止朗讀" stops playback.
 
-Settings let you pick a voice (the list is quality-ranked, best first, Taiwan Chinese preferred, each labelled by region; low-quality character voices sink to the bottom or are hidden), reset speed to 1.0x, adjust speed (0.5x–2.0x), and press preview to hear a sample. The reader pane also has a live speed control (− [1.0x] +) so you can adjust while it plays.
+Settings let you pick a voice (quality-ranked, best first, Taiwan Chinese preferred, region-labelled; low-quality character voices sink or hide), adjust/reset/preview speed, toggle auto-advance to the next note in a folder, choose whether folder playback recurses into subfolders, and define a **pronunciation dictionary** (one `原文=唸法` rule per line) to fix how proper nouns and heteronyms are read — no other Obsidian TTS plugin has this. The reader pane also has a live speed control (− [1.0x] +).
 
 ### Platform support
 

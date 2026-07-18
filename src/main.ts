@@ -1,11 +1,16 @@
 import {
-	MarkdownView,
 	Notice,
 	Plugin,
+	TFile,
+	TFolder,
 	WorkspaceLeaf,
 } from 'obsidian';
 import { STRINGS } from './i18n/zh-tw';
-import { splitIntoSentences } from './sentence-splitter';
+import {
+	sentenceIndexForPrefix,
+	splitIntoSentences,
+} from './sentence-splitter';
+import { orderNotesByPath } from './note-order';
 import {
 	DEFAULT_SETTINGS,
 	TwTtsSettingTab,
@@ -50,6 +55,31 @@ export default class TwTtsPlugin extends Plugin {
 			editorCallback: (editor) => void this.readSelection(editor.getSelection()),
 		});
 		this.addCommand({
+			id: 'read-from-cursor',
+			name: STRINGS.cmdReadFromCursor,
+			editorCallback: (editor) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!file || file.extension !== 'md') {
+					new Notice(STRINGS.noActiveNote);
+					return;
+				}
+				const prefix = editor.getRange({ line: 0, ch: 0 }, editor.getCursor());
+				void this.readFile(file, sentenceIndexForPrefix(prefix));
+			},
+		});
+		this.addCommand({
+			id: 'read-folder',
+			name: STRINGS.cmdReadFolder,
+			callback: () => {
+				const folder = this.app.workspace.getActiveFile()?.parent;
+				if (!folder) {
+					new Notice(STRINGS.noActiveNote);
+					return;
+				}
+				void this.readFolder(folder);
+			},
+		});
+		this.addCommand({
 			id: 'stop',
 			name: STRINGS.cmdStop,
 			callback: () => this.stopAll(),
@@ -59,6 +89,19 @@ export default class TwTtsPlugin extends Plugin {
 			name: STRINGS.cmdOpenReader,
 			callback: () => void this.activateView(),
 		});
+
+		// 檔案總管右鍵資料夾 → 朗讀此資料夾
+		this.registerEvent(
+			this.app.workspace.on('file-menu', (menu, file) => {
+				if (!(file instanceof TFolder)) return;
+				menu.addItem((item) =>
+					item
+						.setTitle(STRINGS.menuReadFolder)
+						.setIcon('volume-2')
+						.onClick(() => void this.readFolder(file)),
+				);
+			}),
+		);
 
 		this.addSettingTab(new TwTtsSettingTab(this.app, this));
 	}
@@ -74,10 +117,24 @@ export default class TwTtsPlugin extends Plugin {
 			new Notice(STRINGS.noActiveNote);
 			return;
 		}
-		const content = await this.app.vault.cachedRead(file);
-		const sentences = splitIntoSentences(content);
+		await this.readFile(file);
+	}
+
+	/** 朗讀單一檔案,可指定起始句。 */
+	async readFile(file: TFile, startIndex = 0): Promise<void> {
 		const view = await this.activateView();
-		view.readSentences(sentences);
+		await view.playFile(file, startIndex);
+	}
+
+	/** 連播一個資料夾內的筆記。 */
+	async readFolder(folder: TFolder): Promise<void> {
+		const files = this.collectFolderNotes(folder);
+		if (files.length === 0) {
+			new Notice(STRINGS.noFolderNotes);
+			return;
+		}
+		const view = await this.activateView();
+		await view.playQueue(files);
 	}
 
 	/** 朗讀選取文字。 */
@@ -90,6 +147,37 @@ export default class TwTtsPlugin extends Plugin {
 		const sentences = splitIntoSentences(text);
 		const view = await this.activateView();
 		view.readSentences(sentences);
+	}
+
+	/** 蒐集資料夾內的 .md(依設定決定是否含子資料夾),依路徑排序。 */
+	private collectFolderNotes(folder: TFolder): TFile[] {
+		const recursive = this.settings.folderQueueRecursive;
+		const out: TFile[] = [];
+		const walk = (f: TFolder): void => {
+			for (const child of f.children) {
+				if (child instanceof TFile) {
+					if (child.extension === 'md') out.push(child);
+				} else if (recursive && child instanceof TFolder) {
+					walk(child);
+				}
+			}
+		};
+		walk(folder);
+		return orderNotesByPath(out);
+	}
+
+	/** 同資料夾、排序後的下一篇 .md;沒有則回 null。 */
+	nextSiblingNote(file: TFile): TFile | null {
+		const parent = file.parent;
+		if (!parent) return null;
+		const siblings = orderNotesByPath(
+			parent.children.filter(
+				(c): c is TFile => c instanceof TFile && c.extension === 'md',
+			),
+		);
+		const idx = siblings.findIndex((f) => f.path === file.path);
+		if (idx < 0 || idx + 1 >= siblings.length) return null;
+		return siblings[idx + 1];
 	}
 
 	stopAll(): void {

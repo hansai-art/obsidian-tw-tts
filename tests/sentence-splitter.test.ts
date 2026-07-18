@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitIntoSentences } from '../src/sentence-splitter';
+import {
+	splitIntoSentences,
+	sentenceIndexForPrefix,
+} from '../src/sentence-splitter';
 
 test('splits Chinese paragraph on full/half-width sentence punctuation', () => {
 	assert.deepEqual(
@@ -102,4 +105,14 @@ test('collapses internal whitespace and trims', () => {
 		splitIntoSentences('這是   一句話。'),
 		['這是 一句話。'],
 	);
+});
+
+test('sentenceIndexForPrefix returns the sentence the cursor sits in', () => {
+	const doc = '第一句。第二句。第三句。';
+	// 游標在「第二句」中間 → 前綴含 1 個完整句 + 1 個未完成句 = 2 句 → index 1
+	assert.equal(sentenceIndexForPrefix('第一句。第二'), 1);
+	// 游標在開頭 → index 0
+	assert.equal(sentenceIndexForPrefix(''), 0);
+	// 游標在最後 → 最後一句
+	assert.equal(sentenceIndexForPrefix(doc), splitIntoSentences(doc).length - 1);
 });

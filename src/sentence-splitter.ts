@@ -122,3 +122,12 @@ export function splitIntoSentences(markdown: string): string[] {
 	}
 	return sentences;
 }
+
+/**
+ * 「從游標處開始唸」用:給游標前的內容,回傳該從第幾句開始。
+ * splitter 是逐行、會剝 markdown,無法精準對字元 offset,
+ * 因此以「游標前的句數」推算游標所在句 = max(0, 句數 - 1)。
+ */
+export function sentenceIndexForPrefix(prefix: string): number {
+	return Math.max(0, splitIntoSentences(prefix).length - 1);
+}
