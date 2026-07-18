@@ -2,7 +2,7 @@ import { ItemView, Notice, WorkspaceLeaf, setIcon, Platform } from 'obsidian';
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
 import { TtsEngine, type TtsSynth, type TtsUtterance } from './tts-engine';
-import { pickVoice } from './voice-utils';
+import { pickVoice } from './voice-catalog';
 
 export const VIEW_TYPE_TW_TTS = 'tw-read-aloud-view';
 
@@ -118,11 +118,7 @@ export class TwTtsReaderView extends ItemView {
 			new Notice(STRINGS.noContent);
 			return;
 		}
-		const voice = pickVoice(
-			synthApi.getVoices(),
-			this.plugin.settings.voiceName,
-			this.plugin.settings.genderPreference,
-		);
+		const voice = pickVoice(synthApi.getVoices(), this.plugin.settings.voiceName);
 		if (!voice) {
 			this.noticeNoVoice();
 			return;

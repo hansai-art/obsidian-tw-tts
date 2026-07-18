@@ -8,31 +8,19 @@ import {
 } from 'obsidian';
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
-import { pickVoice, sortVoicesChineseFirst } from './voice-utils';
-import { voiceGender, type VoiceGender } from './voice-gender';
+import { curatedVoices, pickVoice, regionLabel } from './voice-catalog';
 
 export interface TwTtsSettings {
-	/** 使用者選定的語音 name;空字串 = 自動挑台灣中文語音。 */
+	/** 使用者選定的語音 name;空字串 = 自動挑目前平台最佳中文語音。 */
 	voiceName: string;
 	/** 語速倍率 0.5 ~ 2.0。 */
 	rate: number;
-	/** 自動挑語音時偏好的性別;'any' = 不限。 */
-	genderPreference: VoiceGender | 'any';
 }
 
 export const DEFAULT_SETTINGS: TwTtsSettings = {
 	voiceName: '',
 	rate: 1.0,
-	genderPreference: 'any',
 };
-
-/** 語音下拉選單的性別標籤(男 / 女 / 性別未知)。 */
-function genderLabel(v: SpeechSynthesisVoice): string {
-	const g = voiceGender(v);
-	if (g === 'male') return STRINGS.labelMale;
-	if (g === 'female') return STRINGS.labelFemale;
-	return STRINGS.labelUnknown;
-}
 
 export class TwTtsSettingTab extends PluginSettingTab {
 	private plugin: TwTtsPlugin;
@@ -47,7 +35,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		const synth = window.speechSynthesis;
-		const voices = synth ? sortVoicesChineseFirst(synth.getVoices()) : [];
+		const voices = synth ? curatedVoices(synth.getVoices()) : [];
 
 		const voiceSetting = new Setting(containerEl)
 			.setName(STRINGS.settingVoiceName)
@@ -55,7 +43,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			.addDropdown((dd) => {
 				dd.addOption('', STRINGS.settingVoiceAuto);
 				for (const v of voices) {
-					dd.addOption(v.name, `${v.name}（${v.lang}｜${genderLabel(v)}）`);
+					dd.addOption(v.name, `${v.name}（${regionLabel(v.lang)}）`);
 				}
 				dd.setValue(this.plugin.settings.voiceName);
 				dd.onChange(async (val) => {
@@ -66,20 +54,6 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		if (voices.length === 0) {
 			voiceSetting.setDesc(STRINGS.settingNoVoices);
 		}
-
-		new Setting(containerEl)
-			.setName(STRINGS.settingGender)
-			.setDesc(STRINGS.settingGenderDesc)
-			.addDropdown((dd) => {
-				dd.addOption('any', STRINGS.genderAny);
-				dd.addOption('female', STRINGS.genderFemale);
-				dd.addOption('male', STRINGS.genderMale);
-				dd.setValue(this.plugin.settings.genderPreference);
-				dd.onChange(async (val) => {
-					this.plugin.settings.genderPreference = val as VoiceGender | 'any';
-					await this.plugin.saveSettings();
-				});
-			});
 
 		let rateSlider: SliderComponent;
 		new Setting(containerEl)
@@ -141,18 +115,14 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		}
 	}
 
-	/** 用目前設定(語音 / 性別 / 語速)唸一句範例。 */
+	/** 用目前設定(語音 / 語速)唸一句範例。 */
 	private preview(): void {
 		const synth = window.speechSynthesis;
 		if (!synth) {
 			new Notice(STRINGS.notSupported);
 			return;
 		}
-		const voice = pickVoice(
-			synth.getVoices(),
-			this.plugin.settings.voiceName,
-			this.plugin.settings.genderPreference,
-		);
+		const voice = pickVoice(synth.getVoices(), this.plugin.settings.voiceName);
 		if (!voice) {
 			new Notice(STRINGS.previewNoVoice);
 			return;

@@ -14,7 +14,7 @@
 - 獨立**朗讀窗格**逐句顯示筆記;唸到哪句那句就反白 + 自動捲到可視範圍
 - 播放 / 暫停 / 繼續 / 停止 / 上一句 / 下一句
 - 點窗格裡任一句,從那句開始唸
-- 設定:選語音(預設自動挑台灣中文語音)、調語速
+- 設定:選語音(清單依品質排序,預設自動挑最佳)、調語速
 - 全繁體中文介面
 
 ### 安裝
@@ -51,9 +51,9 @@
 
 設定 → 社群外掛 → Hans TW TTS:
 
-- **語音**:預設「自動(台灣中文優先)」。下拉可改成系統裡任一語音;每個語音都標了男/女標籤。
-- **偏好聲音性別**:不限 / 女聲 / 男聲。語音設為「自動」時,優先挑這個性別的台灣中文語音。
-- **語速**:0.5(最慢)到 2.0(最快)。旁邊的**試聽**鈕會用目前設定唸一句範例。
+- **語音**:預設「自動(推薦最佳語音)」。下拉清單依品質排序,最上面是目前平台最推薦的(台灣中文優先),並標了地區(台灣/大陸/香港)。品質太差或重複的角色/機械音會自動壓到最後或隱藏。
+- **語速**:0.5(最慢)到 2.0(最快)。旁邊有**回到預設(1.0x)**與**試聽**兩顆按鈕。
+- **播放當下也能調語速**:朗讀窗格控制列有 `−  1.0x  +`,點中間數字即回到 1.0x。
 
 ### 平台支援
 
@@ -110,7 +110,7 @@ An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using
 
 Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection. The reader pane opens on the right and highlights each sentence as it is read; click any sentence to start from there. "停止朗讀" stops playback.
 
-Settings let you pick a voice (each labelled male/female), set a preferred gender for the auto-picked Traditional Chinese voice, adjust speed (0.5x–2.0x), and hit the preview button to hear a sample with the current settings.
+Settings let you pick a voice (the list is quality-ranked, best first, Taiwan Chinese preferred, each labelled by region; low-quality character voices sink to the bottom or are hidden), reset speed to 1.0x, adjust speed (0.5x–2.0x), and press preview to hear a sample. The reader pane also has a live speed control (− [1.0x] +) so you can adjust while it plays.
 
 ### Platform support
 

@@ -39,16 +39,8 @@ export const STRINGS = {
 
 	// 設定頁
 	settingVoiceName: '語音',
-	settingVoiceDesc: '選擇朗讀用的語音。預設自動挑台灣中文語音。',
-	settingVoiceAuto: '自動(台灣中文優先)',
-	settingGender: '偏好聲音性別',
-	settingGenderDesc: '「語音」設為自動時,優先挑選此性別的台灣中文語音。',
-	genderAny: '不限',
-	genderFemale: '女聲',
-	genderMale: '男聲',
-	labelMale: '男',
-	labelFemale: '女',
-	labelUnknown: '性別未知',
+	settingVoiceDesc: '選擇朗讀用的語音。清單依品質排序,最上面是目前平台最推薦的。',
+	settingVoiceAuto: '自動(推薦最佳語音)',
 	settingRate: '語速',
 	settingRateDesc: '朗讀速度倍率:0.5 最慢,2.0 最快。',
 	settingRateReset: '回到預設(1.0x)',
