@@ -1,7 +1,7 @@
 {
 	"id": "tw-read-aloud",
 	"name": "Hans TW TTS",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"minAppVersion": "1.7.2",
 	"description": "用系統內建繁中語音朗讀筆記,逐句反白跟讀,介面全繁體中文。Read notes aloud with a built-in Traditional Chinese system voice and sentence-by-sentence highlight follow.",
 	"author": "Hans Lin",

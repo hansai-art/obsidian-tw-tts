@@ -1,0 +1,49 @@
+name: Release plugin
+
+# 推一個版本 tag(如 0.8.1)就自動:lint → test → build → 簽章 → 建 release。
+# 簽章(artifact attestations)讓使用者能驗證 release 檔確實由本 repo 原始碼建出。
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write # 建立 release
+  id-token: write # 簽章需要的 OIDC token
+  attestations: write # 寫入 artifact attestations
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint, test, build
+        run: |
+          npm run lint
+          npm test
+          npm run build
+
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/main.js
+            dist/manifest.json
+            dist/styles.css
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/main.js dist/manifest.json dist/styles.css \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Automated release $GITHUB_REF_NAME (built, tested and attested in CI)."
