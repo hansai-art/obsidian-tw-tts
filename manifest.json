@@ -3,7 +3,7 @@
 	"name": "中文朗讀 (TW Read Aloud)",
 	"version": "0.1.0",
 	"minAppVersion": "1.5.0",
-	"description": "用系統內建中文語音朗讀筆記,逐句反白跟讀。支援 macOS / Windows / iPhone(Android 盡力支援)。介面繁體中文。",
+	"description": "Read notes aloud with a built-in Traditional Chinese system voice and sentence-by-sentence highlight follow. 用系統內建繁中語音朗讀筆記並逐句反白跟讀。",
 	"author": "Hans Lin",
 	"authorUrl": "https://github.com/hansai-art",
 	"isDesktopOnly": false
