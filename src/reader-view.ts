@@ -88,7 +88,11 @@ export class TwTtsReaderView extends ItemView {
 			new Notice(STRINGS.noContent);
 			return;
 		}
-		const voice = pickVoice(synthApi.getVoices(), this.plugin.settings.voiceName);
+		const voice = pickVoice(
+			synthApi.getVoices(),
+			this.plugin.settings.voiceName,
+			this.plugin.settings.genderPreference,
+		);
 		if (!voice) {
 			this.noticeNoVoice();
 			return;

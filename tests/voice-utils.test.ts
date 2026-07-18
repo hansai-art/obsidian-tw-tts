@@ -40,3 +40,24 @@ test('pickVoice returns null when there is no Chinese voice and no preference', 
 test('pickVoice returns null for an empty voice list', () => {
 	assert.equal(pickVoice([]), null);
 });
+
+test('pickVoice with male preference picks a male Chinese voice', () => {
+	const voices = [v('Meijia', 'zh-TW'), v('YunJhe', 'zh-TW')];
+	assert.equal(pickVoice(voices, '', 'male')?.name, 'YunJhe');
+});
+
+test('pickVoice with female preference picks a female Chinese voice', () => {
+	const voices = [v('YunJhe', 'zh-TW'), v('Meijia', 'zh-TW')];
+	assert.equal(pickVoice(voices, '', 'female')?.name, 'Meijia');
+});
+
+test('pickVoice falls back to first Chinese voice when no gender match', () => {
+	const voices = [v('Meijia', 'zh-TW'), v('Tingting', 'zh-CN')];
+	// both female; asking for male should fall back to the first zh voice
+	assert.equal(pickVoice(voices, '', 'male')?.name, 'Meijia');
+});
+
+test('pickVoice explicit name still wins over gender preference', () => {
+	const voices = [v('Meijia', 'zh-TW'), v('YunJhe', 'zh-TW')];
+	assert.equal(pickVoice(voices, 'Meijia', 'male')?.name, 'Meijia');
+});
