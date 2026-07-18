@@ -20,6 +20,9 @@ export const STRINGS = {
 	stop: '停止',
 	prev: '上一句',
 	next: '下一句',
+	rateSlower: '放慢語速',
+	rateFaster: '加快語速',
+	rateReset: '回到預設語速(1.0x)',
 	emptyReader: '按左側工具列的朗讀鈕,或在筆記上執行「朗讀目前筆記」開始。',
 
 	// 提示 / 錯誤
@@ -48,6 +51,7 @@ export const STRINGS = {
 	labelUnknown: '性別未知',
 	settingRate: '語速',
 	settingRateDesc: '朗讀速度倍率:0.5 最慢,2.0 最快。',
+	settingRateReset: '回到預設(1.0x)',
 	settingNoVoices: '目前偵測不到任何語音,請確認系統已安裝語音。',
 	// 試聽
 	previewButton: '試聽',

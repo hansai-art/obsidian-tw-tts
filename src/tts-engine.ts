@@ -74,6 +74,17 @@ export class TtsEngine {
 		this.playFrom(Math.min(Math.max(0, fromIndex), sentences.length - 1));
 	}
 
+	/**
+	 * 調整語速。之後的句子都用新速度;若正在播放(未暫停),
+	 * 重唸目前這句以立即聽到效果(Web Speech 無法改變進行中 utterance 的速度)。
+	 */
+	setRate(rate: number): void {
+		this.opts.rate = rate;
+		if (this.playing && !this.paused) {
+			this.playFrom(this.index);
+		}
+	}
+
 	pause(): void {
 		if (!this.playing) return;
 		this.opts.synth.pause();

@@ -14,6 +14,7 @@ export class TwTtsReaderView extends ItemView {
 	private sentenceEls: HTMLElement[] = [];
 	private currentEl: HTMLElement | null = null;
 	private playPauseBtn!: HTMLElement;
+	private rateLabel!: HTMLElement;
 	private playing = false;
 	private paused = false;
 
@@ -52,9 +53,38 @@ export class TwTtsReaderView extends ItemView {
 		);
 		this.makeBtn(bar, 'square', STRINGS.stop, () => this.stop());
 		this.makeBtn(bar, 'skip-forward', STRINGS.next, () => this.engine?.next());
+		this.renderRateControl(bar);
 
 		this.listEl = c.createDiv('tw-tts-sentences');
 		this.showEmpty();
+	}
+
+	/** 播放當下的語速控制:− [1.0x] +;點中間數字回到預設。 */
+	private renderRateControl(bar: HTMLElement): void {
+		const group = bar.createDiv('tw-tts-rate');
+		this.makeBtn(group, 'minus', STRINGS.rateSlower, () =>
+			this.changeRate(this.plugin.settings.rate - 0.1),
+		).addClass('tw-tts-btn-mini');
+		this.rateLabel = group.createEl('button', { cls: 'tw-tts-rate-label' });
+		this.rateLabel.setAttr('aria-label', STRINGS.rateReset);
+		this.rateLabel.addEventListener('click', () => this.changeRate(1.0));
+		this.makeBtn(group, 'plus', STRINGS.rateFaster, () =>
+			this.changeRate(this.plugin.settings.rate + 0.1),
+		).addClass('tw-tts-btn-mini');
+		this.updateRateLabel();
+	}
+
+	/** 套用新語速:存回設定、即時套到引擎、更新顯示。 */
+	private changeRate(rate: number): void {
+		const r = Math.min(2.0, Math.max(0.5, Math.round(rate * 10) / 10));
+		this.plugin.settings.rate = r;
+		void this.plugin.saveSettings();
+		this.engine?.setRate(r);
+		this.updateRateLabel();
+	}
+
+	private updateRateLabel(): void {
+		this.rateLabel.setText(`${this.plugin.settings.rate.toFixed(1)}x`);
 	}
 
 	private makeBtn(

@@ -38,6 +38,37 @@
 	background: var(--interactive-hover);
 }
 
+.tw-tts-btn-mini {
+	width: 30px;
+	height: 30px;
+}
+
+.tw-tts-rate {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 4px;
+	padding-left: 8px;
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.tw-tts-rate-label {
+	min-width: 42px;
+	padding: 0 4px;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+	cursor: pointer;
+}
+
+.tw-tts-rate-label:hover {
+	color: var(--text-accent);
+}
+
 .tw-tts-sentences {
 	flex: 1;
 	overflow-y: auto;

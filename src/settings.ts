@@ -1,4 +1,11 @@
-import { App, Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
+import {
+	App,
+	Notice,
+	PluginSettingTab,
+	Setting,
+	setIcon,
+	type SliderComponent,
+} from 'obsidian';
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
 import { pickVoice, sortVoicesChineseFirst } from './voice-utils';
@@ -74,10 +81,12 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				});
 			});
 
+		let rateSlider: SliderComponent;
 		new Setting(containerEl)
 			.setName(STRINGS.settingRate)
 			.setDesc(STRINGS.settingRateDesc)
 			.addSlider((sl) => {
+				rateSlider = sl;
 				sl.setLimits(0.5, 2.0, 0.1)
 					.setValue(this.plugin.settings.rate)
 					.setDynamicTooltip();
@@ -85,6 +94,15 @@ export class TwTtsSettingTab extends PluginSettingTab {
 					this.plugin.settings.rate = val;
 					await this.plugin.saveSettings();
 				});
+			})
+			.addExtraButton((btn) => {
+				btn.setIcon('rotate-ccw')
+					.setTooltip(STRINGS.settingRateReset)
+					.onClick(async () => {
+						this.plugin.settings.rate = 1.0;
+						rateSlider.setValue(1.0);
+						await this.plugin.saveSettings();
+					});
 			})
 			.addExtraButton((btn) => {
 				btn.setIcon('play')

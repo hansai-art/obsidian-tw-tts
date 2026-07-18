@@ -143,6 +143,26 @@ test('utterance error triggers onError and stops', () => {
 	assert.match(err, /錯誤/);
 });
 
+test('setRate restarts the current sentence at the new rate while playing', () => {
+	const { synth, engine } = setup();
+	engine.start(['甲', '乙']);
+	synth.fireEnd(0); // -> 乙 (index 1)
+	const before = synth.spoken.length;
+	engine.setRate(1.5);
+	assert.equal(synth.spoken.length, before + 1); // 乙 re-spoken
+	assert.equal(synth.last().text, '乙');
+	assert.equal(synth.last().rate, 1.5);
+	assert.equal(engine.currentIndex, 1);
+});
+
+test('setRate does not speak when idle; applies to the next sentence', () => {
+	const { synth, engine } = setup();
+	engine.setRate(0.75);
+	assert.equal(synth.spoken.length, 0);
+	engine.start(['甲']);
+	assert.equal(synth.last().rate, 0.75);
+});
+
 test('pause and resume delegate to the synth', () => {
 	const { synth, engine } = setup();
 	engine.start(['甲']);
