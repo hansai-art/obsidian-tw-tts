@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
+import { App, Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
 import { pickVoice, sortVoicesChineseFirst } from './voice-utils';
@@ -95,26 +95,31 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		this.renderHelp(containerEl);
 	}
 
-	/** 設定頁底部的內建教學(中文為主、英文為輔)。 */
+	/** 設定頁底部的內建教學(中文為主、英文為輔,每項配 Lucide 圖示)。 */
 	private renderHelp(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName(STRINGS.help.heading).setHeading();
 
-		const list = containerEl.createEl('ol', { cls: 'tw-tts-help' });
+		const list = containerEl.createDiv({ cls: 'tw-tts-help' });
 		for (const step of STRINGS.help.steps) {
-			const li = list.createEl('li');
-			li.createEl('div', { cls: 'tw-tts-help-zh', text: step.zh });
-			li.createEl('div', { cls: 'tw-tts-help-en', text: step.en });
+			const item = list.createDiv({ cls: 'tw-tts-help-item' });
+			setIcon(item.createSpan({ cls: 'tw-tts-help-icon' }), step.icon);
+			const text = item.createDiv({ cls: 'tw-tts-help-text' });
+			text.createDiv({ cls: 'tw-tts-help-zh', text: step.zh });
+			text.createDiv({ cls: 'tw-tts-help-en', text: step.en });
 		}
 
 		new Setting(containerEl).setName(STRINGS.help.noVoiceHeading).setHeading();
-		const hints = containerEl.createEl('ul', { cls: 'tw-tts-help' });
-		for (const hint of [
-			STRINGS.installHintMac,
-			STRINGS.installHintWin,
-			STRINGS.installHintIos,
-			STRINGS.installHintAndroid,
-		]) {
-			hints.createEl('li', { text: hint });
+		const icons = STRINGS.help.platformIcons;
+		const hints = containerEl.createDiv({ cls: 'tw-tts-help' });
+		for (const [icon, hint] of [
+			[icons.mac, STRINGS.installHintMac],
+			[icons.win, STRINGS.installHintWin],
+			[icons.ios, STRINGS.installHintIos],
+			[icons.android, STRINGS.installHintAndroid],
+		] as const) {
+			const item = hints.createDiv({ cls: 'tw-tts-help-item' });
+			setIcon(item.createSpan({ cls: 'tw-tts-help-icon' }), icon);
+			item.createDiv({ cls: 'tw-tts-help-zh', text: hint });
 		}
 	}
 

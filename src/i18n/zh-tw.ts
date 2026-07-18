@@ -59,26 +59,37 @@ export const STRINGS = {
 		heading: '使用教學 · How to use',
 		steps: [
 			{
+				icon: 'volume-2',
 				zh: '朗讀整篇:點左側工具列的喇叭圖示,或執行命令「朗讀目前筆記」。',
 				en: 'Read the whole note: click the speaker icon in the left ribbon, or run the "朗讀目前筆記" (Read current note) command.',
 			},
 			{
+				icon: 'text-select',
 				zh: '朗讀選取:先選一段文字,再執行命令「朗讀選取文字」,只唸選取範圍。',
 				en: 'Read a selection: select some text, then run the "朗讀選取文字" (Read selection) command.',
 			},
 			{
+				icon: 'panel-right',
 				zh: '跟讀窗格:右側會開朗讀窗格並逐句反白;點任一句可從那句開始唸。',
 				en: 'Follow-along pane: a reader pane opens on the right and highlights each sentence; click any sentence to start from there.',
 			},
 			{
+				icon: 'play',
 				zh: '控制:窗格內有播放、暫停、繼續、上一句、下一句、停止。',
 				en: 'Controls: play, pause, resume, previous, next and stop inside the pane.',
 			},
 			{
+				icon: 'sliders-horizontal',
 				zh: '調整聲音:上方可選語音、偏好男聲/女聲、拉語速,按「試聽」先聽一句。',
 				en: 'Tune the voice: pick a voice, prefer male/female, adjust speed above, and press 試聽 (Preview) to sample it.',
 			},
 		],
 		noVoiceHeading: '沒有聲音?請先在系統安裝中文語音 · No sound? Install a Chinese voice first',
+		platformIcons: {
+			mac: 'laptop',
+			win: 'monitor',
+			ios: 'smartphone',
+			android: 'tablet-smartphone',
+		},
 	},
 } as const;

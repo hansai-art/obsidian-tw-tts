@@ -74,12 +74,37 @@
 /* 設定頁內建教學 */
 .tw-tts-help {
 	margin: 0.4em 0 1.2em;
-	padding-left: 1.5em;
-	line-height: 1.65;
+	line-height: 1.6;
 }
 
-.tw-tts-help li {
-	margin-bottom: 0.6em;
+.tw-tts-help-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin-bottom: 0.8em;
+}
+
+.tw-tts-help-icon {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	margin-top: 1px;
+	border-radius: 7px;
+	background: var(--background-modifier-hover);
+	color: var(--text-accent);
+}
+
+.tw-tts-help-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+.tw-tts-help-text {
+	flex: 1;
+	min-width: 0;
 }
 
 .tw-tts-help-zh {
