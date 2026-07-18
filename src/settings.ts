@@ -70,9 +70,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			.setDesc(STRINGS.settingRateDesc)
 			.addSlider((sl) => {
 				rateSlider = sl;
-				sl.setLimits(0.5, 2.0, 0.1)
-					.setValue(this.plugin.settings.rate)
-					.setDynamicTooltip();
+				sl.setLimits(0.5, 2.0, 0.1).setValue(this.plugin.settings.rate);
 				sl.onChange(async (val) => {
 					this.plugin.settings.rate = val;
 					await this.plugin.saveSettings();

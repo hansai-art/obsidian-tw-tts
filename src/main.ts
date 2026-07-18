@@ -196,12 +196,13 @@ export default class TwTtsPlugin extends Plugin {
 			leaf = workspace.getRightLeaf(false) ?? workspace.getLeaf(true);
 			await leaf.setViewState({ type: VIEW_TYPE_TW_TTS, active: true });
 		}
-		workspace.revealLeaf(leaf);
+		await workspace.revealLeaf(leaf);
 		return leaf.view as TwTtsReaderView;
 	}
 
 	async loadSettings(): Promise<void> {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const saved = (await this.loadData()) as Partial<TwTtsSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
 	}
 
 	async saveSettings(): Promise<void> {
