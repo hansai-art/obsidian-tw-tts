@@ -51,11 +51,15 @@ export const STRINGS = {
 	// 結構化錯誤:每個都附「原因 + 解法」,在窗格內以持久面板顯示,不只丟秒消的提示。
 	errors: {
 		androidUnsupported: {
-			title: 'Android 版 Obsidian 無法朗讀(系統限制,不是你的裝置設定問題)',
+			title: 'Android 無法在外掛內朗讀,但可用系統「選取即朗讀」(台灣語音、免費、離線)',
 			body: [
-				'原因:Obsidian 的 Android WebView 沒有開放語音朗讀介面(Chromium 已知 bug),所有離線朗讀外掛在 Android 都無法運作,不是你少裝了什麼。',
-				'解法一:改在電腦(macOS / Windows)或 iPhone / iPad 使用本外掛,可正常朗讀。',
-				'解法二:想在這支 Android 手機讀筆記,改用系統內建朗讀:設定 → 協助工具 → 選取即朗讀(Select to Speak),選取筆記文字讓系統唸。',
+				'原因:Obsidian 的 Android WebView 沒有開放語音介面(Chromium 長年未修的 bug),所有外掛在 Android 都無法直接朗讀,不是你少裝了什麼。',
+				'在 Android 讀筆記的最佳方式是系統內建的「選取即朗讀」,可用台灣中文語音、免費、離線。設定三步:',
+				'1. 裝台灣語音:系統設定搜尋「文字轉語音」→ 偏好引擎選 Google → 安裝語音資料 →「中文(台灣)」。',
+				'2. 開啟朗讀:系統設定 → 協助工具(無障礙)→「選取即朗讀 / Select to Speak」→ 開啟。',
+				'3. 使用:在 Obsidian 選取要唸的文字 → 點出現的「選取即朗讀」圖示 → 系統就用台灣語音唸。',
+				'(各廠牌選單名稱略有不同,找不到時直接搜尋「文字轉語音」「選取即朗讀」。)',
+				'想要逐句反白 / 資料夾連播等外掛功能,請在電腦或 iPhone / iPad 使用,本外掛在那些平台可直接朗讀。',
 			],
 		},
 		noSpeechApi: {

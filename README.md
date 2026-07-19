@@ -69,9 +69,17 @@
 | macOS | ✅ | 用系統內建中文語音 |
 | Windows | ✅ | 需在系統安裝中文語音 |
 | iPhone / iPad | ✅ | 用 iOS 內建中文語音 |
-| Android | ❌ 不支援 | Obsidian 的 Android WebView 未開放語音介面([Chromium 已知 bug](https://bugs.chromium.org/p/chromium/issues/detail?id=487255)),所有離線朗讀外掛皆無法運作。請改用桌機 / iOS,或用 Android 系統的「選取即朗讀」 |
+| Android | ❌ 外掛內不支援(改用系統朗讀) | Obsidian 的 Android WebView 未開放語音介面([Chromium 長年未修的 bug](https://issues.chromium.org/issues/40417848)),所有外掛皆無法直接朗讀。改用系統「選取即朗讀」即可用台灣語音、免費、離線,見下方步驟 |
 
-**Android 為什麼不能用:** 這不是本外掛的問題,而是 Obsidian 在 Android 的 WebView 沒有把系統語音接進 Web Speech API(Chromium 老 bug)。所有走系統離線語音的 TTS 外掛在 Android 都一樣不能朗讀。想在 Android 手機讀筆記,請用系統內建的「選取即朗讀 / Select to Speak」(設定 → 協助工具),選取文字讓系統唸。
+**Android 為什麼不能在外掛內朗讀:** 這不是本外掛的問題,而是 Obsidian 的 Android WebView 沒有把系統語音接進 Web Speech API(Chromium 開了十多年沒修的 bug,連 `speechSynthesis` 介面都不給)。所有 TTS 外掛在 Android 都一樣,純外掛無法碰到系統原生語音。
+
+**Android 建議做法(系統「選取即朗讀」,台灣語音、免費、離線):**
+
+1. **裝台灣語音**:系統設定搜尋「文字轉語音」→ 偏好引擎選 Google →「安裝語音資料」→「中文(台灣)」。
+2. **開啟朗讀**:系統設定 →「協助工具 / 無障礙」→「選取即朗讀 / Select to Speak」→ 開啟。
+3. **使用**:在 Obsidian 選取要唸的文字 → 點出現的「選取即朗讀」圖示 → 系統用台灣語音唸出來。
+
+（各廠牌選單名稱略有不同;找不到時直接搜尋「文字轉語音」「選取即朗讀」。想要逐句反白、資料夾連播等外掛功能,請在電腦或 iPhone / iPad 使用。）
 
 ### 找不到中文語音怎麼辦
 
