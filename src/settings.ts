@@ -4,11 +4,14 @@ import {
 	PluginSettingTab,
 	Setting,
 	setIcon,
+	type SettingDefinitionAction,
+	type SettingDefinitionItem,
 	type SliderComponent,
 } from 'obsidian';
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
 import { curatedVoices, pickVoice, regionLabel } from './voice-catalog';
+import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 
 export interface TwTtsSettings {
 	/** 使用者選定的語音 name;空字串 = 自動挑目前平台最佳中文語音。 */
@@ -37,6 +40,60 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: TwTtsPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	/**
+	 * 宣告式設定(Obsidian 1.13.0+):讓設定項進入 Obsidian 的設定搜尋。
+	 * 回傳非空陣列時,1.13.0+ 走此路徑且不呼叫 display();<1.13.0 不呼叫本方法、走 display()。
+	 * 純資料定義集中在 setting-defs.ts;語速的「回預設 / 試聽」需存取 this,故在此以 action 列插入。
+	 */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		const synth = window.speechSynthesis;
+		const voices = synth ? curatedVoices(synth.getVoices()) : [];
+		const [voiceDef, rateDef, autoNextDef, folderDef, pronDef] =
+			coreSettingDefs(voices);
+
+		const resetAction: SettingDefinitionAction = {
+			name: STRINGS.settingRateReset,
+			action: () => {
+				void this.resetRate();
+			},
+		};
+		const previewAction: SettingDefinitionAction = {
+			name: STRINGS.previewButton,
+			action: () => this.preview(),
+		};
+
+		return [
+			voiceDef,
+			rateDef,
+			resetAction,
+			previewAction,
+			autoNextDef,
+			folderDef,
+			pronDef,
+			...helpGroupDefs(),
+		];
+	}
+
+	/** 宣告式 control 讀值:綁定到本外掛的 settings(而非預設的 vault config)。 */
+	getControlValue(key: string): unknown {
+		return (this.plugin.settings as unknown as Record<string, unknown>)[key];
+	}
+
+	/** 宣告式 control 寫值:更新 settings 並持久化。 */
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
+		await this.plugin.saveSettings();
+	}
+
+	/** 語速回預設 1.0x(宣告式路徑用;重繪讓 slider 反映新值)。 */
+	private async resetRate(): Promise<void> {
+		this.plugin.settings.rate = 1.0;
+		await this.plugin.saveSettings();
+		// update() 為 1.13.0+ API。此方法僅由宣告式路徑(1.13.0+)觸發,故一定存在;
+		// 以最小型別 + optional call 做 feature-detection,避開靜態版本檢查並多一層 runtime 保護。
+		(this as unknown as { update?: () => void }).update?.();
 	}
 
 	display(): void {
