@@ -117,6 +117,39 @@
 	line-height: 1.7;
 }
 
+/* 無法朗讀時的持久「原因 + 解法」面板 */
+.tw-tts-error {
+	margin: 12px 8px;
+	padding: 14px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	line-height: 1.7;
+}
+.tw-tts-error-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+.tw-tts-error-icon {
+	flex: 0 0 auto;
+	color: var(--text-warning);
+}
+.tw-tts-error-title {
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+.tw-tts-error-body {
+	margin: 0;
+	padding-left: 1.3em;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.tw-tts-error-body li {
+	margin: 4px 0;
+}
+
 /* 設定頁內建教學 */
 .tw-tts-help {
 	margin: 0.4em 0 1.2em;

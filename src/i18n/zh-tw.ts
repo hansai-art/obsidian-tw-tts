@@ -41,6 +41,27 @@ export const STRINGS = {
 	notSupported: '此裝置的瀏覽器不支援語音朗讀(Android 上較常見)。',
 	ttsError: '朗讀發生錯誤,請再試一次。',
 
+	// 結構化錯誤:每個都附「原因 + 解法」,在窗格內以持久面板顯示,不只丟秒消的提示。
+	errors: {
+		androidUnsupported: {
+			title: 'Android 版 Obsidian 無法朗讀(系統限制,不是你的裝置設定問題)',
+			body: [
+				'原因:Obsidian 的 Android WebView 沒有開放語音朗讀介面(Chromium 已知 bug),所有離線朗讀外掛在 Android 都無法運作,不是你少裝了什麼。',
+				'解法一:改在電腦(macOS / Windows)或 iPhone / iPad 使用本外掛,可正常朗讀。',
+				'解法二:想在這支 Android 手機讀筆記,改用系統內建朗讀:設定 → 協助工具 → 選取即朗讀(Select to Speak),選取筆記文字讓系統唸。',
+			],
+		},
+		noSpeechApi: {
+			title: '這個環境無法使用語音朗讀',
+			body: [
+				'原因:目前的執行環境沒有提供瀏覽器語音介面(Web Speech API)。',
+				'解法:把 Obsidian 更新到最新版後重試。桌機(macOS / Windows)與 iPhone / iPad 可正常使用。',
+			],
+		},
+		noVoiceTitle: '找不到可用的中文語音(外掛正常,只是系統缺語音)',
+		noVoiceLead: '解法:在系統安裝一個中文語音後回來重試。',
+	},
+
 	// 設定頁
 	settingVoiceName: '語音',
 	settingVoiceDesc: '選擇朗讀用的語音。清單依品質排序,最上面是目前平台最推薦的。',

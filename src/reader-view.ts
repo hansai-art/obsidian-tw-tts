@@ -16,6 +16,7 @@ import {
 	parseRules,
 	type PronunciationRule,
 } from './pronunciation';
+import { playbackError, type ActionableError } from './playback-error';
 
 export const VIEW_TYPE_TW_TTS = 'tw-read-aloud-view';
 
@@ -134,6 +135,24 @@ export class TwTtsReaderView extends ItemView {
 		this.listEl.createDiv({ cls: 'tw-tts-empty', text: STRINGS.emptyReader });
 	}
 
+	/**
+	 * 在窗格內顯示持久的「原因 + 解法」面板,取代秒消的提示。
+	 * 使用者可停留閱讀完整解法,而不是只看到「不能用」就消失。
+	 */
+	private showError(err: ActionableError): void {
+		this.listEl.empty();
+		this.sentenceEls = [];
+		this.currentEl = null;
+		const panel = this.listEl.createDiv({ cls: 'tw-tts-error' });
+		const head = panel.createDiv({ cls: 'tw-tts-error-head' });
+		setIcon(head.createSpan({ cls: 'tw-tts-error-icon' }), 'circle-alert');
+		head.createDiv({ cls: 'tw-tts-error-title', text: err.title });
+		const list = panel.createEl('ul', { cls: 'tw-tts-error-body' });
+		for (const line of err.body) list.createEl('li', { text: line });
+		// 同時給一則較長的提示指路;完整解法在上方面板持久顯示。
+		new Notice(err.title, 8000);
+	}
+
 	// ── 對外播放入口 ─────────────────────────────────────────
 
 	/** 朗讀一段句子(選取文字用;無檔案脈絡,不會自動下一篇)。 */
@@ -198,13 +217,19 @@ export class TwTtsReaderView extends ItemView {
 
 	private resolveVoice(): ResolvedVoice | null {
 		const synthApi = window.speechSynthesis;
-		if (!synthApi) {
-			new Notice(STRINGS.notSupported);
-			return null;
-		}
-		const voice = pickVoice(synthApi.getVoices(), this.plugin.settings.voiceName);
-		if (!voice) {
-			this.noticeNoVoice();
+		const voice = synthApi
+			? pickVoice(synthApi.getVoices(), this.plugin.settings.voiceName)
+			: null;
+		const err = playbackError({
+			hasSpeechApi: !!synthApi,
+			hasVoice: !!voice,
+			isAndroid: Platform.isAndroidApp,
+			isIos: Platform.isIosApp,
+			isDesktop: Platform.isDesktopApp,
+		});
+		if (err || !synthApi || !voice) {
+			// 沒有 err 但仍缺 synth/voice 不該發生;保底顯示一般錯誤,避免 non-null 斷言。
+			this.showError(err ?? { title: STRINGS.errors.noSpeechApi.title, body: STRINGS.errors.noSpeechApi.body });
 			return null;
 		}
 		return { synthApi, voice };
@@ -351,11 +376,4 @@ export class TwTtsReaderView extends ItemView {
 		);
 	}
 
-	private noticeNoVoice(): void {
-		let hint: string = STRINGS.installHintMac;
-		if (Platform.isIosApp) hint = STRINGS.installHintIos;
-		else if (Platform.isAndroidApp) hint = STRINGS.installHintAndroid;
-		else if (Platform.isWin) hint = STRINGS.installHintWin;
-		new Notice(`${STRINGS.noChineseVoice}\n${hint}`, 10000);
-	}
 }

@@ -69,22 +69,23 @@
 | macOS | ✅ | 用系統內建中文語音 |
 | Windows | ✅ | 需在系統安裝中文語音 |
 | iPhone / iPad | ✅ | 用 iOS 內建中文語音 |
-| Android | ⚠️ 盡力支援 | 視裝置 WebView 與是否安裝中文 TTS 語音資料,可能無法朗讀 |
+| Android | ❌ 不支援 | Obsidian 的 Android WebView 未開放語音介面([Chromium 已知 bug](https://bugs.chromium.org/p/chromium/issues/detail?id=487255)),所有離線朗讀外掛皆無法運作。請改用桌機 / iOS,或用 Android 系統的「選取即朗讀」 |
+
+**Android 為什麼不能用:** 這不是本外掛的問題,而是 Obsidian 在 Android 的 WebView 沒有把系統語音接進 Web Speech API(Chromium 老 bug)。所有走系統離線語音的 TTS 外掛在 Android 都一樣不能朗讀。想在 Android 手機讀筆記,請用系統內建的「選取即朗讀 / Select to Speak」(設定 → 協助工具),選取文字讓系統唸。
 
 ### 找不到中文語音怎麼辦
 
-外掛偵測不到中文語音時會跳提示。請先到系統安裝中文語音:
+外掛偵測不到中文語音時,會在朗讀窗格內顯示「原因 + 解法」面板。請先到系統安裝中文語音:
 
 - **macOS**:系統設定 → 輔助使用 → 朗讀內容 → 系統聲音,加入中文(台灣)
 - **Windows**:設定 → 時間與語言 → 語音,新增中文語音
 - **iPhone / iPad**:設定 → 輔助使用 → 朗讀內容 → 聲音 → 中文,下載語音
-- **Android**:設定 → 系統 → 文字轉語音輸出,安裝中文語音資料
 
 ### 開發
 
 - TypeScript + esbuild。`npm run dev` 監看建置,`npm run build` 正式建置。
 - `npm test` 跑單元測試(Node 內建測試 runner + tsx)。
-- 純邏輯(`sentence-splitter`、`tts-engine`、`voice-utils`)與 Obsidian 解耦,可獨立測試。
+- 純邏輯(`sentence-splitter`、`tts-engine`、`voice-catalog`、`pronunciation`、`note-order`、`setting-defs`、`playback-error`)與 Obsidian 解耦,可獨立測試。
 
 ### 授權
 
@@ -121,7 +122,7 @@ Settings let you pick a voice (quality-ranked, best first, Taiwan Chinese prefer
 
 ### Platform support
 
-macOS ✅ · Windows ✅ · iPhone/iPad ✅ · Android ⚠️ best effort (depends on the device WebView and whether a Chinese TTS voice is installed).
+macOS ✅ · Windows ✅ · iPhone/iPad ✅ · Android ❌ not supported. Obsidian's Android WebView does not expose the Web Speech API (a [known Chromium bug](https://bugs.chromium.org/p/chromium/issues/detail?id=487255) that blocks every offline TTS plugin). Use desktop/iOS, or Android's system **Select to Speak** (Settings → Accessibility) to read notes on Android.
 
 ### License
 

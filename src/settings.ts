@@ -1,6 +1,7 @@
 import {
 	App,
 	Notice,
+	Platform,
 	PluginSettingTab,
 	Setting,
 	setIcon,
@@ -12,6 +13,7 @@ import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
 import { curatedVoices, pickVoice, regionLabel } from './voice-catalog';
 import { coreSettingDefs, helpGroupDefs } from './setting-defs';
+import { playbackError } from './playback-error';
 
 export interface TwTtsSettings {
 	/** 使用者選定的語音 name;空字串 = 自動挑目前平台最佳中文語音。 */
@@ -218,13 +220,23 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	/** 用目前設定(語音 / 語速)唸一句範例。 */
 	private preview(): void {
 		const synth = window.speechSynthesis;
-		if (!synth) {
-			new Notice(STRINGS.notSupported);
-			return;
-		}
-		const voice = pickVoice(synth.getVoices(), this.plugin.settings.voiceName);
-		if (!voice) {
-			new Notice(STRINGS.previewNoVoice);
+		const voice = synth
+			? pickVoice(synth.getVoices(), this.plugin.settings.voiceName)
+			: null;
+		const err = playbackError({
+			hasSpeechApi: !!synth,
+			hasVoice: !!voice,
+			isAndroid: Platform.isAndroidApp,
+			isIos: Platform.isIosApp,
+			isDesktop: Platform.isDesktopApp,
+		});
+		if (err || !synth || !voice) {
+			const e = err ?? {
+				title: STRINGS.errors.noSpeechApi.title,
+				body: STRINGS.errors.noSpeechApi.body,
+			};
+			// 設定頁沒有窗格可放持久面板,故用長版提示帶出標題 + 完整解法。
+			new Notice(`${e.title}\n${e.body.join('\n')}`, 12000);
 			return;
 		}
 		synth.cancel();
