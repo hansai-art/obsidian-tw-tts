@@ -7,14 +7,8 @@ export const STRINGS = {
 	cmdReadFolder: '朗讀目前資料夾',
 	cmdStop: '停止朗讀',
 	cmdOpenReader: '開啟朗讀窗格',
-	cmdAudioSelfTest: '測試音訊播放(診斷用)',
 	cmdTtsDiagnostics: '語音診斷(回報用)',
 	menuReadFolder: '朗讀此資料夾',
-
-	// 音訊自我測試
-	audioTestPlaying: '正在播放測試音(440Hz,約 0.6 秒)…',
-	audioTestOk: '有聽到「嗶」聲 = 這個裝置的 Web Audio 正常,可播放合成語音。若沒聽到,請檢查音量 / 是否靜音。',
-	audioTestFail: '無法播放測試音,這個環境的 Web Audio 有問題:',
 
 	// ribbon / 狀態列
 	ribbonTooltip: '朗讀本篇',

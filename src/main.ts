@@ -11,7 +11,6 @@ import {
 	sentenceIndexForPrefix,
 	splitIntoSentences,
 } from './sentence-splitter';
-import { playTestTone } from './audio-selftest';
 import { formatTtsDiagnostics } from './tts-diagnostics';
 import { orderNotesByPath } from './note-order';
 import {
@@ -93,11 +92,6 @@ export default class TwTtsPlugin extends Plugin {
 			callback: () => void this.activateView(),
 		});
 		this.addCommand({
-			id: 'audio-selftest',
-			name: STRINGS.cmdAudioSelfTest,
-			callback: () => void this.runAudioSelfTest(),
-		});
-		this.addCommand({
 			id: 'tts-diagnostics',
 			name: STRINGS.cmdTtsDiagnostics,
 			callback: () => this.showTtsDiagnostics(),
@@ -149,18 +143,6 @@ export default class TwTtsPlugin extends Plugin {
 		});
 		// duration 0 = 停留到點擊,方便手機截圖回報。
 		new Notice(lines.join('\n'), 0);
-	}
-
-	/** 診斷:播一段測試音,確認這個裝置的 Web Audio 能出聲(離線語音的播放前提)。 */
-	private async runAudioSelfTest(): Promise<void> {
-		new Notice(STRINGS.audioTestPlaying, 4000);
-		try {
-			await playTestTone();
-			new Notice(STRINGS.audioTestOk, 8000);
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : String(e);
-			new Notice(`${STRINGS.audioTestFail}\n${msg}`, 12000);
-		}
 	}
 
 	/** 朗讀目前開啟的筆記。 */
