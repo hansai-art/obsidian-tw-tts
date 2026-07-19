@@ -10,6 +10,7 @@ import {
 	sentenceIndexForPrefix,
 	splitIntoSentences,
 } from './sentence-splitter';
+import { playTestTone } from './audio-selftest';
 import { orderNotesByPath } from './note-order';
 import {
 	DEFAULT_SETTINGS,
@@ -89,6 +90,11 @@ export default class TwTtsPlugin extends Plugin {
 			name: STRINGS.cmdOpenReader,
 			callback: () => void this.activateView(),
 		});
+		this.addCommand({
+			id: 'audio-selftest',
+			name: STRINGS.cmdAudioSelfTest,
+			callback: () => void this.runAudioSelfTest(),
+		});
 
 		// 檔案總管右鍵資料夾 → 朗讀此資料夾
 		this.registerEvent(
@@ -108,6 +114,18 @@ export default class TwTtsPlugin extends Plugin {
 
 	onunload(): void {
 		window.speechSynthesis?.cancel();
+	}
+
+	/** 診斷:播一段測試音,確認這個裝置的 Web Audio 能出聲(離線語音的播放前提)。 */
+	private async runAudioSelfTest(): Promise<void> {
+		new Notice(STRINGS.audioTestPlaying, 4000);
+		try {
+			await playTestTone();
+			new Notice(STRINGS.audioTestOk, 8000);
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			new Notice(`${STRINGS.audioTestFail}\n${msg}`, 12000);
+		}
 	}
 
 	/** 朗讀目前開啟的筆記。 */
