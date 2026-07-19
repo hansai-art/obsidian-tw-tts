@@ -1,5 +1,6 @@
 import {
 	Notice,
+	Platform,
 	Plugin,
 	TFile,
 	TFolder,
@@ -11,6 +12,7 @@ import {
 	splitIntoSentences,
 } from './sentence-splitter';
 import { playTestTone } from './audio-selftest';
+import { formatTtsDiagnostics } from './tts-diagnostics';
 import { orderNotesByPath } from './note-order';
 import {
 	DEFAULT_SETTINGS,
@@ -95,6 +97,11 @@ export default class TwTtsPlugin extends Plugin {
 			name: STRINGS.cmdAudioSelfTest,
 			callback: () => void this.runAudioSelfTest(),
 		});
+		this.addCommand({
+			id: 'tts-diagnostics',
+			name: STRINGS.cmdTtsDiagnostics,
+			callback: () => this.showTtsDiagnostics(),
+		});
 
 		// 檔案總管右鍵資料夾 → 朗讀此資料夾
 		this.registerEvent(
@@ -114,6 +121,34 @@ export default class TwTtsPlugin extends Plugin {
 
 	onunload(): void {
 		window.speechSynthesis?.cancel();
+	}
+
+	/** 診斷:顯示這台裝置的 speechSynthesis 狀態 + WebView 版本,供截圖回報。 */
+	private showTtsDiagnostics(): void {
+		const synth = window.speechSynthesis;
+		const voices = synth ? synth.getVoices() : [];
+		const zhVoices = voices
+			.filter((v) => /^zh/i.test(v.lang))
+			.map((v) => `${v.name} (${v.lang})`);
+		const platform = Platform.isAndroidApp
+			? 'Android app'
+			: Platform.isIosApp
+				? 'iOS app'
+				: Platform.isDesktopApp
+					? 'Desktop'
+					: 'Unknown';
+		// OS 判斷用 Platform;此處讀 userAgent 只為診斷「WebView/Chromium 版本」
+		// (speechSynthesis 支援與版本相關),非用來分支邏輯,故以鬆散型別變數存取。
+		const nav = window.navigator as unknown as { userAgent?: string };
+		const lines = formatTtsDiagnostics({
+			hasSpeechSynthesis: !!synth,
+			voiceCount: voices.length,
+			zhVoices,
+			userAgent: nav.userAgent ?? '',
+			platform,
+		});
+		// duration 0 = 停留到點擊,方便手機截圖回報。
+		new Notice(lines.join('\n'), 0);
 	}
 
 	/** 診斷:播一段測試音,確認這個裝置的 Web Audio 能出聲(離線語音的播放前提)。 */

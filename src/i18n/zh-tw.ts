@@ -8,6 +8,7 @@ export const STRINGS = {
 	cmdStop: '停止朗讀',
 	cmdOpenReader: '開啟朗讀窗格',
 	cmdAudioSelfTest: '測試音訊播放(診斷用)',
+	cmdTtsDiagnostics: '語音診斷(回報用)',
 	menuReadFolder: '朗讀此資料夾',
 
 	// 音訊自我測試
