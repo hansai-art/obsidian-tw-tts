@@ -21,12 +21,12 @@ test('voiceDropdownOptions labels each voice with its region', () => {
 	assert.equal(opts['Ting-Ting'], 'Ting-Ting（大陸）');
 });
 
-test('coreSettingDefs returns the five settings in display order', () => {
+test('coreSettingDefs returns the six settings in display order', () => {
 	const defs = coreSettingDefs([]);
-	assert.equal(defs.length, 5);
+	assert.equal(defs.length, 6);
 	assert.deepEqual(
 		defs.map((d) => d.control.type),
-		['dropdown', 'slider', 'toggle', 'toggle', 'textarea'],
+		['dropdown', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
 	);
 });
 
@@ -35,7 +35,14 @@ test('coreSettingDefs keys match the TwTtsSettings fields exactly', () => {
 	const defs = coreSettingDefs([]);
 	assert.deepEqual(
 		defs.map((d) => d.control.key),
-		['voiceName', 'rate', 'autoNextInFolder', 'folderQueueRecursive', 'pronunciationRules'],
+		[
+			'voiceName',
+			'rate',
+			'autoNextInFolder',
+			'folderQueueRecursive',
+			'pronunciationRules',
+			'silentSymbols',
+		],
 	);
 });
 
@@ -64,6 +71,14 @@ test('pronunciation textarea keeps its placeholder and 6 rows', () => {
 	if (ta.type !== 'textarea') return;
 	assert.equal(ta.rows, 6);
 	assert.equal(ta.placeholder, STRINGS.settingPronunciationPlaceholder);
+});
+
+test('silent-symbols field is a single-line text input with the symbol hint', () => {
+	const tc = coreSettingDefs([])[5].control;
+	assert.equal(tc.type, 'text');
+	if (tc.type !== 'text') return;
+	assert.equal(tc.key, 'silentSymbols');
+	assert.equal(tc.placeholder, STRINGS.settingSilentSymbolsPlaceholder);
 });
 
 test('helpGroupDefs mirrors the tutorial steps and platform hints', () => {

@@ -26,6 +26,8 @@ export interface TwTtsSettings {
 	folderQueueRecursive: boolean;
 	/** 發音字典原始規則字串(一行一條「原文=唸法」)。 */
 	pronunciationRules: string;
+	/** 不朗讀的符號,以空白分隔(如「○ ● ※」)。這些符號會在送去朗讀前被刪掉。 */
+	silentSymbols: string;
 }
 
 export const DEFAULT_SETTINGS: TwTtsSettings = {
@@ -34,6 +36,7 @@ export const DEFAULT_SETTINGS: TwTtsSettings = {
 	autoNextInFolder: false,
 	folderQueueRecursive: false,
 	pronunciationRules: '',
+	silentSymbols: '',
 };
 
 export class TwTtsSettingTab extends PluginSettingTab {
@@ -52,7 +55,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const synth = window.speechSynthesis;
 		const voices = synth ? curatedVoices(synth.getVoices()) : [];
-		const [voiceDef, rateDef, autoNextDef, folderDef, pronDef] =
+		const [voiceDef, rateDef, autoNextDef, folderDef, pronDef, silentDef] =
 			coreSettingDefs(voices);
 
 		const resetAction: SettingDefinitionAction = {
@@ -74,6 +77,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			autoNextDef,
 			folderDef,
 			pronDef,
+			silentDef,
 			...helpGroupDefs(),
 		];
 	}
@@ -184,6 +188,18 @@ export class TwTtsSettingTab extends PluginSettingTab {
 					this.plugin.settings.pronunciationRules = val;
 					await this.plugin.saveSettings();
 				});
+			});
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingSilentSymbols)
+			.setDesc(STRINGS.settingSilentSymbolsDesc)
+			.addText((tc) => {
+				tc.setPlaceholder(STRINGS.settingSilentSymbolsPlaceholder)
+					.setValue(this.plugin.settings.silentSymbols)
+					.onChange(async (val) => {
+						this.plugin.settings.silentSymbols = val;
+						await this.plugin.saveSettings();
+					});
 			});
 
 		this.renderHelp(containerEl);

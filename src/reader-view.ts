@@ -14,6 +14,7 @@ import { splitIntoSentences } from './sentence-splitter';
 import {
 	applyPronunciation,
 	parseRules,
+	parseSilentSymbols,
 	type PronunciationRule,
 } from './pronunciation';
 import { playbackError, type ActionableError } from './playback-error';
@@ -42,6 +43,8 @@ export class TwTtsReaderView extends ItemView {
 	private queueIndex = 0;
 	private currentFile: TFile | null = null;
 	private rules: PronunciationRule[] = [];
+	/** 「不朗讀的符號」轉成的取代規則,在發音字典之後套用。 */
+	private silentRules: PronunciationRule[] = [];
 
 	constructor(leaf: WorkspaceLeaf, plugin: TwTtsPlugin) {
 		super(leaf);
@@ -242,6 +245,7 @@ export class TwTtsReaderView extends ItemView {
 	): void {
 		this.renderSentenceList(sentences);
 		this.rules = parseRules(this.plugin.settings.pronunciationRules);
+		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
 
 		const synth: TtsSynth = {
 			speak: (u) => synthApi.speak(u as unknown as SpeechSynthesisUtterance),
@@ -249,10 +253,15 @@ export class TwTtsReaderView extends ItemView {
 			pause: () => synthApi.pause(),
 			resume: () => synthApi.resume(),
 		};
-		// 畫面反白顯示原文,送去朗讀的內容才套發音字典。
+		// 畫面反白顯示原文,送去朗讀的內容才套設定。
+		// 順序:先發音字典、後刪符號。使用者若特地寫了「○=圈」代表他要唸出來,
+		// 明確指定的唸法應該贏過概括性的靜音清單。
 		const createUtterance = (text: string): TtsUtterance =>
 			new SpeechSynthesisUtterance(
-				applyPronunciation(text, this.rules),
+				applyPronunciation(
+					applyPronunciation(text, this.rules),
+					this.silentRules,
+				),
 			) as unknown as TtsUtterance;
 
 		this.engine = new TtsEngine(

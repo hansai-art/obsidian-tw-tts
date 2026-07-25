@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRules, applyPronunciation } from '../src/pronunciation';
+import {
+	parseRules,
+	applyPronunciation,
+	parseSilentSymbols,
+} from '../src/pronunciation';
 
 test('parseRules reads "from=to" lines', () => {
 	assert.deepEqual(parseRules('iPAS=愛帕斯\nGPT=G P T'), [
@@ -42,4 +46,40 @@ test('applyPronunciation treats the term literally (no regex surprises)', () => 
 
 test('applyPronunciation with no rules returns the text unchanged', () => {
 	assert.equal(applyPronunciation('原文', []), '原文');
+});
+
+// ── 不朗讀的符號 ──
+
+test('parseSilentSymbols splits on whitespace into delete rules', () => {
+	assert.deepEqual(parseSilentSymbols('○ ● ※'), [['○', ''], ['●', ''], ['※', '']]);
+});
+
+test('parseSilentSymbols treats full-width spaces and newlines as separators', () => {
+	assert.deepEqual(parseSilentSymbols('○　●\n※'), [['○', ''], ['●', ''], ['※', '']]);
+});
+
+test('parseSilentSymbols de-duplicates and ignores padding', () => {
+	assert.deepEqual(parseSilentSymbols('  ○   ○ ●  '), [['○', ''], ['●', '']]);
+});
+
+test('parseSilentSymbols accepts multi-character tokens', () => {
+	assert.deepEqual(parseSilentSymbols('-- ->'), [['--', ''], ['->', '']]);
+});
+
+test('parseSilentSymbols on empty input returns no rules', () => {
+	assert.deepEqual(parseSilentSymbols(''), []);
+	assert.deepEqual(parseSilentSymbols('   '), []);
+});
+
+test('silencing a symbol removes it from the spoken text', () => {
+	const silent = parseSilentSymbols('○');
+	assert.equal(applyPronunciation('○ 第一點', silent), ' 第一點');
+});
+
+test('the dictionary runs first, so an explicit reading beats the silent list', () => {
+	// 使用者特地寫了「○=圈」代表他要唸出來,明確指定應該贏過概括性靜音。
+	const dict = parseRules('○=圈');
+	const silent = parseSilentSymbols('○');
+	const spoken = applyPronunciation(applyPronunciation('○ 甲', dict), silent);
+	assert.equal(spoken, '圈 甲');
 });

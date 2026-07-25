@@ -13,6 +13,7 @@
 - 一鍵朗讀目前筆記,或只朗讀選取的文字,或**從游標處開始唸**
 - **資料夾連播**:右鍵資料夾一次唸完整個資料夾,可設定讀完自動下一篇
 - **發音字典**:自訂破音字 / 專有名詞唸法(iPAS、臺、GPT…),全 Obsidian TTS 外掛獨家
+- **不朗讀的符號**:拿來當列點的符號(○ ● ※…)可以設成不唸,不會再被唸成「零」
 - 獨立**朗讀窗格**逐句顯示筆記;唸到哪句那句就反白 + 自動捲到可視範圍
 - 播放 / 暫停 / 繼續 / 停止 / 上一句 / 下一句;播放當下可調語速
 - 點窗格裡任一句,從那句開始唸
@@ -61,6 +62,7 @@
 - **單篇讀完自動下一篇**:開啟後,唸完一篇會自動接著唸同資料夾的下一篇。
 - **資料夾連播含子資料夾**:右鍵連播時是否也含子資料夾內的筆記(預設只該層)。
 - **發音字典**:一行一條「原文=唸法」(`#` 開頭為註解),校正破音字與專有名詞。例:`iPAS=愛帕斯`、`臺=台`。只改朗讀發音,畫面仍顯示原文。
+- **不朗讀的符號**:一行填完、用空白分隔,例:`○ ● ◎ ※`。這些符號送去朗讀前會被刪掉(否則 `○` 會被唸成「零」),畫面仍顯示原文。整行只有這類符號時會被安靜跳過。若同一個符號在發音字典裡另有指定唸法,以發音字典為準。
 
 ### 平台支援
 
@@ -126,7 +128,7 @@ An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using
 
 Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection, or "從游標處開始唸" to start from the sentence at your cursor. Right-click a folder → "朗讀此資料夾" to play every note in it back-to-back. The reader pane opens on the right, highlights each sentence as it is read (with the note title + position when playing a folder), and click any sentence to start from there. "停止朗讀" stops playback.
 
-Settings let you pick a voice (quality-ranked, best first, Taiwan Chinese preferred, region-labelled; low-quality character voices sink or hide), adjust/reset/preview speed, toggle auto-advance to the next note in a folder, choose whether folder playback recurses into subfolders, and define a **pronunciation dictionary** (one `原文=唸法` rule per line) to fix how proper nouns and heteronyms are read — no other Obsidian TTS plugin has this. The reader pane also has a live speed control (− [1.0x] +).
+Settings let you pick a voice (quality-ranked, best first, Taiwan Chinese preferred, region-labelled; low-quality character voices sink or hide), adjust/reset/preview speed, toggle auto-advance to the next note in a folder, choose whether folder playback recurses into subfolders, define a **pronunciation dictionary** (one `原文=唸法` rule per line) to fix how proper nouns and heteronyms are read — no other Obsidian TTS plugin has this — and list **silent symbols** (space-separated, e.g. `○ ● ◎ ※`) that are stripped before speaking, so bullet glyphs are not read aloud (`○` would otherwise be voiced as "zero"); a line consisting only of such symbols is skipped. The reader pane also has a live speed control (− [1.0x] +).
 
 ### Platform support
 

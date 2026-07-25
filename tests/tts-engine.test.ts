@@ -173,3 +173,63 @@ test('pause and resume delegate to the synth', () => {
 	assert.equal(synth.resumed, 1);
 	assert.equal(engine.isPaused, false);
 });
+
+// ── 空白句跳過(不朗讀的符號 / 發音字典把整句刪光時) ──
+// 空字串的 utterance 在多數語音引擎不會觸發 onend,送出去播放就會卡死。
+
+test('skips a sentence that becomes blank and speaks the next one', () => {
+	const { synth, engine } = setup();
+	engine.start(['甲', '   ', '丙']);
+	synth.fireEnd(0);
+	assert.equal(synth.spoken.length, 2, '空白句不應該被送去 speak');
+	assert.equal(synth.last().text, '丙');
+	assert.equal(engine.currentIndex, 2);
+});
+
+test('skips consecutive blank sentences in one hop', () => {
+	const { synth, engine } = setup();
+	engine.start(['甲', '', '  ', '戊']);
+	synth.fireEnd(0);
+	assert.equal(synth.spoken.length, 2);
+	assert.equal(synth.last().text, '戊');
+});
+
+test('a blank sentence never reports onSentenceStart', () => {
+	const seen: number[] = [];
+	const { synth, engine } = setup({ onSentenceStart: (i: number) => seen.push(i) });
+	engine.start(['甲', '  ', '丙']);
+	synth.fireStart(0);
+	synth.fireEnd(0);
+	synth.fireStart(1);
+	assert.deepEqual(seen, [0, 2], '反白應該直接從第 0 句跳到第 2 句');
+});
+
+test('a symbol-only sentence is skipped once the symbol is silenced', () => {
+	const synth = new MockSynth();
+	// 模擬「不朗讀的符號」設了 ○:送去朗讀前先把 ○ 刪掉。
+	const engine = new TtsEngine(
+		{ synth, createUtterance: (t) => makeUtterance(t.split('○').join('')), rate: 1 },
+		{},
+	);
+	engine.start(['重點如下:', '○○○', '結論在這裡。']);
+	synth.fireEnd(0);
+	assert.equal(synth.last().text, '結論在這裡。', '分隔線那行應該被跳過而不是卡住');
+});
+
+test('blank tail still finishes normally', () => {
+	let done = 0;
+	const { synth, engine } = setup({ onDone: () => done++ });
+	engine.start(['甲', '  ']);
+	synth.fireEnd(0);
+	assert.equal(done, 1);
+	assert.equal(engine.isPlaying, false);
+});
+
+test('all-blank sentences report no readable content instead of stalling', () => {
+	const errors: string[] = [];
+	const { synth, engine } = setup({ onError: (m: string) => errors.push(m) });
+	engine.start(['  ', '']);
+	assert.equal(synth.spoken.length, 0);
+	assert.deepEqual(errors, ['沒有可朗讀的內容']);
+	assert.equal(engine.isPlaying, false);
+});

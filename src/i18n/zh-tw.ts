@@ -83,6 +83,10 @@ export const STRINGS = {
 	settingPronunciationDesc:
 		'一行一條,格式「原文=唸法」,# 開頭為註解。只改朗讀發音,畫面仍顯示原文。',
 	settingPronunciationPlaceholder: 'iPAS=愛帕斯\nGPT=G P T\n臺=台\n# 這行是註解',
+	settingSilentSymbols: '不朗讀的符號',
+	settingSilentSymbolsDesc:
+		'填在這裡的符號會被略過不唸,用空白分隔。適合拿來當列點的符號(否則 ○ 會被唸成「零」)。畫面仍顯示原文。',
+	settingSilentSymbolsPlaceholder: '○ ● ◎ ※ ▪ ‧',
 	// 試聽
 	previewButton: '試聽',
 	previewSample: '你好,這是台灣中文語音測試。一二三四五。',

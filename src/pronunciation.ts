@@ -29,6 +29,27 @@ export function parseRules(raw: string): PronunciationRule[] {
 }
 
 /**
+ * 解析「不朗讀的符號」設定:以空白分隔的符號清單,轉成「取代為空字串」的規則。
+ *
+ * 為什麼不叫使用者去發音字典寫 `○=`:那個寫法能用,但沒人找得到(等號右邊留空
+ * 不是直覺的介面)。這裡給一個一行填完、不用學語法的欄位。
+ *
+ * 半形與全形空白都當分隔(JS 的 `\s` 已含全形空格 U+3000,不要另外寫字面全形字元,
+ * eslint no-irregular-whitespace 會擋);重複的只留一條;token 可以是多個字元(如 `--`)。
+ */
+export function parseSilentSymbols(raw: string): PronunciationRule[] {
+	if (!raw) return [];
+	const seen = new Set<string>();
+	const rules: PronunciationRule[] = [];
+	for (const token of raw.split(/\s+/)) {
+		if (!token || seen.has(token)) continue;
+		seen.add(token);
+		rules.push([token, '']);
+	}
+	return rules;
+}
+
+/**
  * 套用規則:逐條全域取代(大小寫敏感)。
  * 用 split/join 而非 RegExp,避免原文含正則特殊字元時出錯。
  */

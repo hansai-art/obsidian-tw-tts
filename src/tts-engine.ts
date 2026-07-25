@@ -44,6 +44,8 @@ export class TtsEngine {
 	private active: TtsUtterance | null = null;
 	private playing = false;
 	private paused = false;
+	/** 本輪有沒有真的唸出過任何一句(用來分辨「唸完了」與「整篇都沒東西可唸」)。 */
+	private spokeAny = false;
 
 	constructor(
 		private readonly opts: TtsEngineOptions,
@@ -66,6 +68,7 @@ export class TtsEngine {
 	/** 開始朗讀。fromIndex 可從指定句開始。 */
 	start(sentences: string[], fromIndex = 0): void {
 		this.sentences = sentences;
+		this.spokeAny = false;
 		if (sentences.length === 0) {
 			this.playing = false;
 			this.cb.onError?.('沒有可朗讀的內容');
@@ -134,13 +137,42 @@ export class TtsEngine {
 		this.speakCurrent();
 	}
 
+	/**
+	 * 唸目前這句。若套完設定(發音字典 / 不朗讀的符號)後變成空白,往後跳到下一句。
+	 *
+	 * 為什麼要跳:空字串的 utterance 在多數語音引擎不會觸發 onend,送出去會讓播放
+	 * 永遠停在那一句。整行只有列點符號時就會發生(例如一行只有 `○`)。
+	 */
 	private speakCurrent(): void {
-		const u = this.opts.createUtterance(this.sentences[this.index]);
+		let u: TtsUtterance | null = null;
+		while (this.index < this.sentences.length) {
+			const candidate = this.opts.createUtterance(this.sentences[this.index]);
+			if (candidate.text.trim() !== '') {
+				u = candidate;
+				break;
+			}
+			this.index++;
+		}
+
+		if (!u) {
+			// 後面全是空白句。唸過東西就當正常結束;一句都沒唸過代表整篇沒有可讀內容。
+			this.active = null;
+			if (this.spokeAny) {
+				this.finish();
+			} else {
+				this.playing = false;
+				this.paused = false;
+				this.cb.onError?.('沒有可朗讀的內容');
+			}
+			return;
+		}
+
 		if (this.opts.voice) u.voice = this.opts.voice;
 		u.rate = this.opts.rate ?? 1;
 		if (this.opts.lang) u.lang = this.opts.lang;
 
 		const idx = this.index;
+		this.spokeAny = true;
 		u.onstart = () => {
 			if (u !== this.active) return; // 忽略已被取消的舊 utterance
 			this.cb.onSentenceStart?.(idx);
