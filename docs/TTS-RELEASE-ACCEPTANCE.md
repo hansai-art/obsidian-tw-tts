@@ -15,11 +15,12 @@ This file is the release gate for user-visible TTS changes. A version must not b
 ## Invariants
 
 1. System-voice dropdown exposes Chinese and English only. Legacy preferences for other languages fall back to the recommended Chinese voice.
-2. The selected provider owns both preview and reading. A preview must never silently use a different provider.
-3. Preview controls are the first settings block and include both play and stop.
-4. Edge-only controls appear only when Edge CLI is the effective desktop provider.
-5. Stop must cancel local Web Speech and release any Edge preview audio.
-6. Online Edge text transmission and its no-SLA status remain documented.
+2. Selecting a system voice immediately previews it. Edge voice is free text, so it is previewed only from the explicit button, never once per typed character.
+3. The selected provider owns both preview and reading. A preview must never silently use a different provider.
+4. Preview controls are the first settings block and include adjacent, labelled play and stop buttons.
+5. Edge-only controls appear only when Edge CLI is the effective desktop provider. System-voice controls appear only in system mode.
+6. Stop must cancel local Web Speech and release any Edge preview audio.
+7. Online Edge text transmission and its no-SLA status remain documented.
 
 ## Release evidence
 

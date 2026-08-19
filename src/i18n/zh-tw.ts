@@ -75,7 +75,7 @@ export const STRINGS = {
 	settingEdgeVoice: 'Edge 語音',
 	settingEdgeVoiceDesc: '僅 Edge CLI 使用。預設 zh-CN-XiaoxiaoNeural；可填 zh-CN-YunyangNeural 等 edge-tts 支援的語音。',
 	settingVoiceName: '語音',
-	settingVoiceDesc: '選擇朗讀用的語音。僅保留中文與英文；中文依品質排序在前。',
+	settingVoiceDesc: '選擇朗讀用的語音。僅保留中文與英文；選到新語音會立即試聽。',
 	settingVoiceAuto: '自動(推薦最佳語音)',
 	settingRate: '語速',
 	settingRateDesc: '朗讀速度倍率:0.5 最慢,2.0 最快。',
@@ -98,7 +98,7 @@ export const STRINGS = {
 	settingSilentSymbolsPlaceholder: '○ ● ◎ ※ ▪ ‧',
 	// 試聽
 	previewHeading: '試聽語音',
-	previewDesc: '依目前選擇的中文或英文語音、語速與音高播放一段範例。',
+	previewDesc: '依目前選擇的語音、語速與音高播放一段範例；切換系統語音時也會自動試聽。',
 	previewButton: '試聽',
 	previewStopButton: '停止試聽',
 	previewSample: '你好,這是台灣中文語音測試。一二三四五。',

@@ -19,3 +19,12 @@ export function shouldUseEdgeProvider(provider: TtsProvider, isDesktop: boolean)
 export function previewLanguage(language: string): 'zh' | 'en' {
 	return normaliseLanguage(language).startsWith('en') ? 'en' : 'zh';
 }
+
+/** 下拉選到系統語音就立即試聽；Edge 語音是自由輸入，不能每個字元都發送線上請求。 */
+export function shouldAutoPreviewOnSettingChange(
+	settingKey: string,
+	provider: TtsProvider,
+	isDesktop: boolean,
+): boolean {
+	return settingKey === 'voiceName' && !shouldUseEdgeProvider(provider, isDesktop);
+}

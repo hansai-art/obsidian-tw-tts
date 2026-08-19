@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
 	isSupportedSystemVoiceLanguage,
 	previewLanguage,
+	shouldAutoPreviewOnSettingChange,
 	shouldUseEdgeProvider,
 } from '../src/provider-policy';
 
@@ -25,4 +26,10 @@ test('preview language follows the selected voice language', () => {
 	assert.equal(previewLanguage('en_US'), 'en');
 	assert.equal(previewLanguage('zh-TW'), 'zh');
 	assert.equal(previewLanguage(''), 'zh');
+});
+
+test('selecting a local system voice previews immediately, but typing Edge voice text does not', () => {
+	assert.equal(shouldAutoPreviewOnSettingChange('voiceName', 'local', true), true);
+	assert.equal(shouldAutoPreviewOnSettingChange('voiceName', 'edge', true), false);
+	assert.equal(shouldAutoPreviewOnSettingChange('edgeVoice', 'edge', true), false);
 });

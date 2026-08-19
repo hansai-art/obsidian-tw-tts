@@ -7,6 +7,7 @@ import {
 	setIcon,
 	type SettingDefinitionAction,
 	type SettingDefinitionItem,
+	type SettingDefinitionRender,
 	type SliderComponent,
 } from 'obsidian';
 import type TwTtsPlugin from './main';
@@ -16,7 +17,12 @@ import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
 import { createEdgeAudio, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
-import { previewLanguage, shouldUseEdgeProvider, type TtsProvider } from './provider-policy';
+import {
+	previewLanguage,
+	shouldAutoPreviewOnSettingChange,
+	shouldUseEdgeProvider,
+	type TtsProvider,
+} from './provider-policy';
 
 export interface TwTtsSettings {
 	/** local = Web Speech 系統語音；edge = 桌面 edge-tts CLI。 */
@@ -77,13 +83,21 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				void this.resetRate();
 			},
 		};
-		const previewAction: SettingDefinitionAction = {
-			name: STRINGS.previewButton,
-			action: () => this.preview(),
-		};
-		const stopPreviewAction: SettingDefinitionAction = {
-			name: STRINGS.previewStopButton,
-			action: () => this.stopPreview(),
+		const previewControls: SettingDefinitionRender = {
+			name: STRINGS.previewHeading,
+			desc: STRINGS.previewDesc,
+			render: (setting) => {
+				setting
+					.addButton((btn) =>
+						btn.setButtonText(STRINGS.previewButton).setIcon('play').onClick(() => this.preview()),
+					)
+					.addButton((btn) =>
+						btn
+							.setButtonText(STRINGS.previewStopButton)
+							.setIcon('square')
+							.onClick(() => this.stopPreview()),
+					);
+			},
 		};
 		const resetPitchAction: SettingDefinitionAction = {
 			name: STRINGS.settingPitchReset,
@@ -93,13 +107,14 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		};
 
 		return [
-			previewAction,
-			stopPreviewAction,
+			previewControls,
 			providerDef,
 			...(shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)
 				? [edgeVoiceDef]
 				: []),
-			voiceDef,
+			...(!shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)
+				? [voiceDef]
+				: []),
 			rateDef,
 			resetAction,
 			pitchDef,
@@ -122,6 +137,9 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
 		await this.plugin.saveSettings();
 		if (key === 'provider') (this as unknown as { update?: () => void }).update?.();
+		if (shouldAutoPreviewOnSettingChange(key, this.plugin.settings.provider, Platform.isDesktopApp)) {
+			this.preview();
+		}
 	}
 
 	/** 語速回預設 1.0x(宣告式路徑用;重繪讓 slider 反映新值)。 */
@@ -157,8 +175,11 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			.addButton((btn) =>
 				btn.setButtonText(STRINGS.previewButton).setIcon('play').onClick(() => this.preview()),
 			)
-			.addExtraButton((btn) =>
-				btn.setIcon('square').setTooltip(STRINGS.previewStopButton).onClick(() => this.stopPreview()),
+			.addButton((btn) =>
+				btn
+					.setButtonText(STRINGS.previewStopButton)
+					.setIcon('square')
+					.onClick(() => this.stopPreview()),
 			);
 
 		new Setting(containerEl)
@@ -189,6 +210,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				});
 		}
 
+		if (!shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)) {
 		const voiceSetting = new Setting(containerEl)
 			.setName(STRINGS.settingVoiceName)
 			.setDesc(STRINGS.settingVoiceDesc)
@@ -201,10 +223,14 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				dd.onChange(async (val) => {
 					this.plugin.settings.voiceName = val;
 					await this.plugin.saveSettings();
+					if (shouldAutoPreviewOnSettingChange('voiceName', this.plugin.settings.provider, Platform.isDesktopApp)) {
+						this.preview();
+					}
 				});
 			});
 		if (voices.length === 0) {
 			voiceSetting.setDesc(STRINGS.settingNoVoices);
+		}
 		}
 
 		let rateSlider: SliderComponent;
