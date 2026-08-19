@@ -86,13 +86,13 @@ test('curatedVoices excludes non-Chinese voices', () => {
 	assert.equal(result[0].name, 'Meijia');
 });
 
-test('availableVoices keeps curated Chinese first and exposes other installed languages', () => {
+test('availableVoices keeps curated Chinese first, then English, and hides other languages', () => {
 	const result = availableVoices([
 		v('Ava', 'en-US'),
 		v('Yunyang', 'zh-CN'),
 		v('Amelie', 'fr-FR'),
 	]);
-	assert.deepEqual(result.map((voice) => voice.name), ['Yunyang', 'Ava', 'Amelie']);
+	assert.deepEqual(result.map((voice) => voice.name), ['Yunyang', 'Ava']);
 });
 
 test('pickVoice returns the best curated voice when no preference', () => {
@@ -100,9 +100,10 @@ test('pickVoice returns the best curated voice when no preference', () => {
 	assert.equal(pickVoice(voices)?.name, 'Meijia');
 });
 
-test('pickVoice honours an explicit voice name, even a non-Chinese one', () => {
-	const voices = [v('Ava', 'en-US'), v('Meijia', 'zh-TW')];
+test('pickVoice honours an explicit English voice but ignores filtered languages', () => {
+	const voices = [v('Ava', 'en-US'), v('Amelie', 'fr-FR'), v('Meijia', 'zh-TW')];
 	assert.equal(pickVoice(voices, 'Ava')?.name, 'Ava');
+	assert.equal(pickVoice(voices, 'Amelie')?.name, 'Meijia');
 });
 
 test('pickVoice returns null when there is no Chinese voice and no preference', () => {

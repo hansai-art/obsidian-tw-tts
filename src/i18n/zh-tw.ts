@@ -75,7 +75,7 @@ export const STRINGS = {
 	settingEdgeVoice: 'Edge 語音',
 	settingEdgeVoiceDesc: '僅 Edge CLI 使用。預設 zh-CN-XiaoxiaoNeural；可填 zh-CN-YunyangNeural 等 edge-tts 支援的語音。',
 	settingVoiceName: '語音',
-	settingVoiceDesc: '選擇朗讀用的語音。中文依品質排序在前，其餘列出系統已安裝的多國語音。',
+	settingVoiceDesc: '選擇朗讀用的語音。僅保留中文與英文；中文依品質排序在前。',
 	settingVoiceAuto: '自動(推薦最佳語音)',
 	settingRate: '語速',
 	settingRateDesc: '朗讀速度倍率:0.5 最慢,2.0 最快。',
@@ -97,8 +97,12 @@ export const STRINGS = {
 		'填在這裡的符號會被略過不唸,用空白分隔。適合拿來當列點的符號(否則 ○ 會被唸成「零」)。畫面仍顯示原文。',
 	settingSilentSymbolsPlaceholder: '○ ● ◎ ※ ▪ ‧',
 	// 試聽
+	previewHeading: '試聽語音',
+	previewDesc: '依目前選擇的中文或英文語音、語速與音高播放一段範例。',
 	previewButton: '試聽',
+	previewStopButton: '停止試聽',
 	previewSample: '你好,這是台灣中文語音測試。一二三四五。',
+	previewSampleEnglish: 'Hello, this is an English voice test. One, two, three, four, five.',
 	previewNoVoice: '找不到可用的中文語音,無法試聽。',
 
 	// 設定頁內建教學(中英文)
@@ -127,8 +131,8 @@ export const STRINGS = {
 			},
 			{
 				icon: 'sliders-horizontal',
-				zh: '調整聲音:上方可選系統已安裝的多國語音、拉語速與音高；按「試聽」先聽一句。',
-				en: 'Tune the voice: pick any installed system voice, adjust speed and pitch, then press 試聽 (Preview) to sample it.',
+				zh: '調整聲音:上方可選中文或英文語音、拉語速與音高；按「試聽」先聽一句。',
+				en: 'Tune the voice: pick a Chinese or English system voice, adjust speed and pitch, then press 試聽 (Preview) to sample it.',
 			},
 		],
 		noVoiceHeading: '沒有聲音?請先在系統安裝中文語音 · No sound? Install a Chinese voice first',

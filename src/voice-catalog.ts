@@ -67,6 +67,10 @@ function isChinese(v: SpeechSynthesisVoice): boolean {
 	return normLang(v.lang).startsWith('zh');
 }
 
+function isEnglish(v: SpeechSynthesisVoice): boolean {
+	return normLang(v.lang).startsWith('en');
+}
+
 /** 排序鍵:先地區、再品質、最後名稱(穩定)。 */
 function rankOf(v: SpeechSynthesisVoice): [number, number, string] {
 	return [regionOrder(v.lang), qualityTier(v.name), (v.name || '').toLowerCase()];
@@ -105,16 +109,19 @@ export function curatedVoices(
 	return [...good, ...character];
 }
 
-/** 設定頁列出所有已安裝的系統語音；中文維持既有品質排序。 */
+/**
+ * 設定頁只保留中文與英文：中文維持品質排序，英文依地區與名稱排序。
+ * 這是中文知識庫，避免一長串其他語言讓設定難以選擇。
+ */
 export function availableVoices(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
 	const chinese = curatedVoices(voices);
 	const chineseNames = new Set(chinese.map((v) => v.name));
-	const other = voices
-		.filter((v) => !chineseNames.has(v.name))
+	const english = voices
+		.filter((v) => isEnglish(v) && !chineseNames.has(v.name))
 		.sort((a, b) =>
 			normLang(a.lang).localeCompare(normLang(b.lang)) || a.name.localeCompare(b.name),
 		);
-	return [...chinese, ...other];
+	return [...chinese, ...english];
 }
 
 /**
@@ -129,7 +136,7 @@ export function pickVoice(
 ): SpeechSynthesisVoice | null {
 	if (!voices.length) return null;
 	if (preferredName) {
-		const found = voices.find((v) => v.name === preferredName);
+		const found = availableVoices(voices).find((v) => v.name === preferredName);
 		if (found) return found;
 	}
 	return curatedVoices(voices)[0] ?? null;

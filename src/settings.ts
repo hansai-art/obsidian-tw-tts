@@ -15,6 +15,7 @@ import { availableVoices, pickVoice, regionLabel } from './voice-catalog';
 import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
+import { createEdgeAudio, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
 
 export interface TwTtsSettings {
 	/** local = Web Speech 系統語音；edge = 桌面 edge-tts CLI。 */
@@ -51,6 +52,7 @@ export const DEFAULT_SETTINGS: TwTtsSettings = {
 
 export class TwTtsSettingTab extends PluginSettingTab {
 	private plugin: TwTtsPlugin;
+	private edgePreviewAudio: EdgeAudio | null = null;
 
 	constructor(app: App, plugin: TwTtsPlugin) {
 		super(app, plugin);
@@ -78,6 +80,10 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			name: STRINGS.previewButton,
 			action: () => this.preview(),
 		};
+		const stopPreviewAction: SettingDefinitionAction = {
+			name: STRINGS.previewStopButton,
+			action: () => this.stopPreview(),
+		};
 		const resetPitchAction: SettingDefinitionAction = {
 			name: STRINGS.settingPitchReset,
 			action: () => {
@@ -86,6 +92,8 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		};
 
 		return [
+			previewAction,
+			stopPreviewAction,
 			providerDef,
 			edgeVoiceDef,
 			voiceDef,
@@ -93,7 +101,6 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			resetAction,
 			pitchDef,
 			resetPitchAction,
-			previewAction,
 			autoNextDef,
 			folderDef,
 			pronDef,
@@ -134,6 +141,16 @@ export class TwTtsSettingTab extends PluginSettingTab {
 
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];
+
+		new Setting(containerEl)
+			.setName(STRINGS.previewHeading)
+			.setDesc(STRINGS.previewDesc)
+			.addButton((btn) =>
+				btn.setButtonText(STRINGS.previewButton).setIcon('play').onClick(() => this.preview()),
+			)
+			.addExtraButton((btn) =>
+				btn.setIcon('square').setTooltip(STRINGS.previewStopButton).onClick(() => this.stopPreview()),
+			);
 
 		new Setting(containerEl)
 			.setName(STRINGS.settingProvider)
@@ -199,11 +216,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			})
-			.addExtraButton((btn) => {
-				btn.setIcon('play')
-					.setTooltip(STRINGS.previewButton)
-					.onClick(() => this.preview());
-			});
+			;
 
 		let pitchSlider: SliderComponent;
 		new Setting(containerEl)
@@ -306,8 +319,12 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		}
 	}
 
-	/** 用目前設定(語音 / 語速)唸一句範例。 */
+	/** 用目前設定的中文或英文語音、語速與音高唸一句範例。 */
 	private preview(): void {
+		if (this.plugin.settings.provider === 'edge' && Platform.isDesktopApp) {
+			void this.previewEdge();
+			return;
+		}
 		const synth = window.speechSynthesis;
 		const voice = synth
 			? pickVoice(synth.getVoices(), this.plugin.settings.voiceName)
@@ -329,11 +346,50 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			return;
 		}
 		synth.cancel();
-		const u = new SpeechSynthesisUtterance(STRINGS.previewSample);
+		const sample = voice.lang.toLowerCase().startsWith('en')
+			? STRINGS.previewSampleEnglish
+			: STRINGS.previewSample;
+		const u = new SpeechSynthesisUtterance(sample);
 		u.voice = voice;
 		u.lang = voice.lang;
 		u.rate = this.plugin.settings.rate;
 		u.pitch = semitonesToSpeechPitch(this.plugin.settings.pitch);
 		synth.speak(u);
+	}
+
+	private async previewEdge(): Promise<void> {
+		this.stopPreview();
+		try {
+			const voice = this.plugin.settings.edgeVoice;
+			const sample = voice.toLowerCase().startsWith('en-')
+				? STRINGS.previewSampleEnglish
+				: STRINGS.previewSample;
+			const blob = await new EdgeCliSpeechClient().synthesize(sample, {
+				voice,
+				rate: this.plugin.settings.rate,
+				pitch: this.plugin.settings.pitch,
+			});
+			const audio = createEdgeAudio(blob);
+			this.edgePreviewAudio = audio;
+			audio.onEnded = () => this.releaseEdgePreview(audio);
+			audio.onError = () => {
+				this.releaseEdgePreview(audio);
+				new Notice('Edge 語音試聽播放失敗。');
+			};
+			await audio.play();
+		} catch {
+			new Notice('Edge 語音試聽失敗。請確認已安裝 edge-tts 且網路正常。', 8000);
+		}
+	}
+
+	private releaseEdgePreview(audio: EdgeAudio): void {
+		if (this.edgePreviewAudio !== audio) return;
+		audio.release();
+		this.edgePreviewAudio = null;
+	}
+
+	private stopPreview(): void {
+		window.speechSynthesis?.cancel();
+		if (this.edgePreviewAudio) this.releaseEdgePreview(this.edgePreviewAudio);
 	}
 }
