@@ -21,12 +21,12 @@ test('voiceDropdownOptions labels each voice with its region', () => {
 	assert.equal(opts['Ting-Ting'], 'Ting-Ting（大陸）');
 });
 
-test('coreSettingDefs starts with provider and Edge voice controls and exposes nine settings in display order', () => {
+test('coreSettingDefs exposes provider, curated cloud voice and Azure controls in display order', () => {
 	const defs = coreSettingDefs([]);
-	assert.equal(defs.length, 9);
+	assert.equal(defs.length, 12);
 	assert.deepEqual(
 		defs.map((d) => d.control.type),
-		['dropdown', 'text', 'dropdown', 'slider', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
+		['dropdown', 'dropdown', 'text', 'text', 'dropdown', 'dropdown', 'slider', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
 	);
 });
 
@@ -38,6 +38,9 @@ test('coreSettingDefs keys match the TwTtsSettings fields exactly', () => {
 		[
 			'provider',
 			'edgeVoice',
+			'azureKey',
+			'azureRegion',
+			'azureVoice',
 			'voiceName',
 			'rate',
 			'pitch',
@@ -58,7 +61,7 @@ test('voice desc switches to the no-voices hint when the list is empty', () => {
 });
 
 test('slider def carries the 0.5-2.0 range and a 1-decimal formatter', () => {
-	const slider = coreSettingDefs([])[3].control;
+	const slider = coreSettingDefs([])[6].control;
 	assert.equal(slider.type, 'slider');
 	if (slider.type !== 'slider') return;
 	assert.equal(slider.min, 0.5);
@@ -69,7 +72,7 @@ test('slider def carries the 0.5-2.0 range and a 1-decimal formatter', () => {
 });
 
 test('pronunciation textarea keeps its placeholder and 6 rows', () => {
-	const ta = coreSettingDefs([])[7].control;
+	const ta = coreSettingDefs([])[10].control;
 	assert.equal(ta.type, 'textarea');
 	if (ta.type !== 'textarea') return;
 	assert.equal(ta.rows, 6);
@@ -77,7 +80,7 @@ test('pronunciation textarea keeps its placeholder and 6 rows', () => {
 });
 
 test('silent-symbols field is a single-line text input with the symbol hint', () => {
-	const tc = coreSettingDefs([])[8].control;
+	const tc = coreSettingDefs([])[11].control;
 	assert.equal(tc.type, 'text');
 	if (tc.type !== 'text') return;
 	assert.equal(tc.key, 'silentSymbols');

@@ -28,8 +28,9 @@ test('preview language follows the selected voice language', () => {
 	assert.equal(previewLanguage(''), 'zh');
 });
 
-test('selecting a local system voice previews immediately, but typing Edge voice text does not', () => {
+test('selecting a voice in any provider previews immediately', () => {
 	assert.equal(shouldAutoPreviewOnSettingChange('voiceName', 'local', true), true);
 	assert.equal(shouldAutoPreviewOnSettingChange('voiceName', 'edge', true), false);
-	assert.equal(shouldAutoPreviewOnSettingChange('edgeVoice', 'edge', true), false);
+	assert.equal(shouldAutoPreviewOnSettingChange('edgeVoice', 'edge', true), true);
+	assert.equal(shouldAutoPreviewOnSettingChange('azureVoice', 'azure', false), true);
 });

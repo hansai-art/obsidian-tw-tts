@@ -16,19 +16,26 @@ import { availableVoices, pickVoice, regionLabel } from './voice-catalog';
 import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
-import { createEdgeAudio, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
+import { createEdgeAudio, edgeFailureMessage, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
+import { ObsidianAzureSpeechClient } from './azure-obsidian';
+import { cloudVoiceOptions } from './cloud-voice-catalog';
 import {
 	previewLanguage,
 	shouldAutoPreviewOnSettingChange,
+	shouldUseAzureProvider,
 	shouldUseEdgeProvider,
 	type TtsProvider,
 } from './provider-policy';
 
 export interface TwTtsSettings {
-	/** local = Web Speech 系統語音；edge = 桌面 edge-tts CLI。 */
+	/** local = Web Speech；edge = 桌面 CLI；azure = 使用者自己的 Azure Speech API。 */
 	provider: TtsProvider;
 	/** Edge CLI 語音名稱；僅在 desktop Edge 引擎使用。 */
 	edgeVoice: string;
+	/** Azure Speech Key 僅存於本機 Obsidian 外掛資料，不會送往外掛作者。 */
+	azureKey: string;
+	azureRegion: string;
+	azureVoice: string;
 	/** 使用者選定的語音 name;空字串 = 自動挑目前平台最佳中文語音。 */
 	voiceName: string;
 	/** 語速倍率 0.5 ~ 2.0。 */
@@ -48,6 +55,9 @@ export interface TwTtsSettings {
 export const DEFAULT_SETTINGS: TwTtsSettings = {
 	provider: 'local',
 	edgeVoice: 'zh-CN-XiaoxiaoNeural',
+	azureKey: '',
+	azureRegion: '',
+	azureVoice: 'zh-CN-XiaoxiaoNeural',
 	voiceName: '',
 	rate: 1.0,
 	pitch: 0,
@@ -60,6 +70,8 @@ export const DEFAULT_SETTINGS: TwTtsSettings = {
 export class TwTtsSettingTab extends PluginSettingTab {
 	private plugin: TwTtsPlugin;
 	private edgePreviewAudio: EdgeAudio | null = null;
+	/** 切換聲音時淘汰舊的非同步合成，避免晚回來的舊音檔蓋過新選擇。 */
+	private previewGeneration = 0;
 
 	constructor(app: App, plugin: TwTtsPlugin) {
 		super(app, plugin);
@@ -74,7 +86,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];
-		const [providerDef, edgeVoiceDef, voiceDef, rateDef, pitchDef, autoNextDef, folderDef, pronDef, silentDef] =
+		const [providerDef, edgeVoiceDef, , azureRegionDef, azureVoiceDef, voiceDef, rateDef, pitchDef, autoNextDef, folderDef, pronDef, silentDef] =
 			coreSettingDefs(voices);
 
 		const resetAction: SettingDefinitionAction = {
@@ -99,6 +111,19 @@ export class TwTtsSettingTab extends PluginSettingTab {
 					);
 			},
 		};
+		const azureKeyControl: SettingDefinitionRender = {
+			name: STRINGS.settingAzureKey,
+			desc: STRINGS.settingAzureKeyDesc,
+			render: (setting) => {
+				setting.addText((tc) => {
+					tc.inputEl.type = 'password';
+					tc.setPlaceholder(STRINGS.settingAzureKeyPlaceholder).setValue(this.plugin.settings.azureKey).onChange((value) => {
+						this.plugin.settings.azureKey = value.trim();
+						void this.plugin.saveSettings();
+					});
+				});
+			},
+		};
 		const resetPitchAction: SettingDefinitionAction = {
 			name: STRINGS.settingPitchReset,
 			action: () => {
@@ -112,7 +137,10 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			...(shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)
 				? [edgeVoiceDef]
 				: []),
-			...(!shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)
+			...(shouldUseAzureProvider(this.plugin.settings.provider)
+				? [azureKeyControl, azureRegionDef, azureVoiceDef]
+				: []),
+			...(!shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp) && !shouldUseAzureProvider(this.plugin.settings.provider)
 				? [voiceDef]
 				: []),
 			rateDef,
@@ -186,8 +214,9 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			.setName(STRINGS.settingProvider)
 			.setDesc(STRINGS.settingProviderDesc)
 			.addDropdown((dd) => {
-				dd.addOption('edge', STRINGS.settingProviderEdge);
 				dd.addOption('local', STRINGS.settingProviderLocal);
+				dd.addOption('edge', STRINGS.settingProviderEdge);
+				dd.addOption('azure', STRINGS.settingProviderAzure);
 				dd.setValue(this.plugin.settings.provider);
 				dd.onChange(async (val) => {
 					this.plugin.settings.provider = val as TtsProvider;
@@ -200,17 +229,48 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName(STRINGS.settingEdgeVoice)
 				.setDesc(STRINGS.settingEdgeVoiceDesc)
-				.addText((tc) => {
-					tc.setPlaceholder(DEFAULT_SETTINGS.edgeVoice)
-						.setValue(this.plugin.settings.edgeVoice)
-						.onChange(async (val) => {
-							this.plugin.settings.edgeVoice = val.trim() || DEFAULT_SETTINGS.edgeVoice;
-							await this.plugin.saveSettings();
-						});
+				.addDropdown((dd) => {
+					for (const [id, label] of Object.entries(cloudVoiceOptions())) dd.addOption(id, label);
+					dd.setValue(this.plugin.settings.edgeVoice).onChange(async (val) => {
+						this.plugin.settings.edgeVoice = val;
+						await this.plugin.saveSettings();
+						this.preview();
+					});
 				});
 		}
 
-		if (!shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)) {
+		if (shouldUseAzureProvider(this.plugin.settings.provider)) {
+			new Setting(containerEl)
+				.setName(STRINGS.settingAzureKey)
+				.setDesc(STRINGS.settingAzureKeyDesc)
+				.addText((tc) => {
+					tc.inputEl.type = 'password';
+					tc.setPlaceholder(STRINGS.settingAzureKeyPlaceholder).setValue(this.plugin.settings.azureKey).onChange(async (val) => {
+						this.plugin.settings.azureKey = val.trim();
+						await this.plugin.saveSettings();
+					});
+				});
+			new Setting(containerEl)
+				.setName(STRINGS.settingAzureRegion)
+				.setDesc(STRINGS.settingAzureRegionDesc)
+				.addText((tc) => tc.setPlaceholder('Eastasia').setValue(this.plugin.settings.azureRegion).onChange(async (val) => {
+					this.plugin.settings.azureRegion = val.trim();
+					await this.plugin.saveSettings();
+				}));
+			new Setting(containerEl)
+				.setName(STRINGS.settingAzureVoice)
+				.setDesc(STRINGS.settingAzureVoiceDesc)
+				.addDropdown((dd) => {
+					for (const [id, label] of Object.entries(cloudVoiceOptions())) dd.addOption(id, label);
+					dd.setValue(this.plugin.settings.azureVoice).onChange(async (val) => {
+						this.plugin.settings.azureVoice = val;
+						await this.plugin.saveSettings();
+						this.preview();
+					});
+				});
+		}
+
+		if (!shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp) && !shouldUseAzureProvider(this.plugin.settings.provider)) {
 		const voiceSetting = new Setting(containerEl)
 			.setName(STRINGS.settingVoiceName)
 			.setDesc(STRINGS.settingVoiceDesc)
@@ -363,6 +423,10 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			void this.previewEdge();
 			return;
 		}
+		if (shouldUseAzureProvider(this.plugin.settings.provider)) {
+			void this.previewAzure();
+			return;
+		}
 		const synth = window.speechSynthesis;
 		const voice = synth
 			? pickVoice(synth.getVoices(), this.plugin.settings.voiceName)
@@ -397,16 +461,26 @@ export class TwTtsSettingTab extends PluginSettingTab {
 
 	private async previewEdge(): Promise<void> {
 		this.stopPreview();
+		const generation = this.previewGeneration;
+		let blob: Blob;
 		try {
 			const voice = this.plugin.settings.edgeVoice;
 			const sample = previewLanguage(voice) === 'en'
 				? STRINGS.previewSampleEnglish
 				: STRINGS.previewSample;
-			const blob = await new EdgeCliSpeechClient().synthesize(sample, {
+			blob = await new EdgeCliSpeechClient().synthesize(sample, {
 				voice,
 				rate: this.plugin.settings.rate,
 				pitch: this.plugin.settings.pitch,
 			});
+		} catch (error) {
+			if (generation === this.previewGeneration) {
+				new Notice(edgeFailureMessage(error as { code?: string | number; killed?: boolean; message?: string }), 8000);
+			}
+			return;
+		}
+		if (generation !== this.previewGeneration) return;
+		try {
 			const audio = createEdgeAudio(blob);
 			this.edgePreviewAudio = audio;
 			audio.onEnded = () => this.releaseEdgePreview(audio);
@@ -416,7 +490,35 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			};
 			await audio.play();
 		} catch {
-			new Notice('Edge 語音試聽失敗。請確認已安裝 edge-tts 且網路正常。', 8000);
+			if (generation === this.previewGeneration) {
+				new Notice('Edge 語音已產生，但試聽音訊無法播放。請確認系統輸出裝置後重試。', 8000);
+			}
+		}
+	}
+
+	private async previewAzure(): Promise<void> {
+		this.stopPreview();
+		const generation = this.previewGeneration;
+		try {
+			const voice = this.plugin.settings.azureVoice;
+			const sample = previewLanguage(voice) === 'en' ? STRINGS.previewSampleEnglish : STRINGS.previewSample;
+			const blob = await new ObsidianAzureSpeechClient({
+				key: this.plugin.settings.azureKey,
+				region: this.plugin.settings.azureRegion,
+			}).synthesize(sample, { voice, rate: this.plugin.settings.rate, pitch: this.plugin.settings.pitch });
+			if (generation !== this.previewGeneration) return;
+			const audio = createEdgeAudio(blob);
+			this.edgePreviewAudio = audio;
+			audio.onEnded = () => this.releaseEdgePreview(audio);
+			audio.onError = () => {
+				this.releaseEdgePreview(audio);
+				new Notice('Azure 語音試聽播放失敗。');
+			};
+			await audio.play();
+		} catch (error) {
+			if (generation !== this.previewGeneration) return;
+			const message = error instanceof Error ? error.message : '未知錯誤';
+			new Notice(`Azure 語音試聽失敗：${message}`, 10000);
 		}
 	}
 
@@ -427,6 +529,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	}
 
 	private stopPreview(): void {
+		this.previewGeneration++;
 		window.speechSynthesis?.cancel();
 		if (this.edgePreviewAudio) this.releaseEdgePreview(this.edgePreviewAudio);
 	}

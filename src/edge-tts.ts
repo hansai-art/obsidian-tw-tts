@@ -1,6 +1,9 @@
+/* global module -- Obsidian desktop loads plugin bundles through CommonJS. */
+
 type ExecFile = (
 	file: string,
 	args: string[],
+	options: { timeout: number; maxBuffer: number },
 	callback: (error: Error | null) => void,
 ) => void;
 
@@ -8,22 +11,41 @@ interface DesktopNodeModules {
 	execFile: ExecFile;
 	readFile(path: string): Promise<Uint8Array>;
 	rm(path: string, options: { force: boolean }): Promise<void>;
+	access(path: string): Promise<void>;
+	readdir(path: string): Promise<string[]>;
 	tmpdir(): string;
+	homedir(): string;
 	join(...paths: string[]): string;
 }
 
 type DesktopRequire = (id: string) => unknown;
+
+/** Electron bridge 版本相容：Obsidian 1.13 可不提供 window.require。 */
+export function pickDesktopRequire(
+	windowRequire: DesktopRequire | undefined,
+	globalRequire: DesktopRequire | undefined,
+): DesktopRequire | undefined {
+	return windowRequire ?? globalRequire;
+}
 
 /**
  * Obsidian 桌面版 Electron 提供 window.require；呼叫端已以 Platform.isDesktopApp
  * 限制 Edge provider，這裡再檢查一次，避免行動版取用 Node API。
  */
 function desktopNodeModules(): DesktopNodeModules {
-	const nodeRequire = (window as unknown as { require?: DesktopRequire }).require;
+	// Obsidian/Electron 版本不同：有些掛在 window.require，有些只提供 CommonJS module.require。
+	const moduleRequire =
+		typeof module === 'object' && typeof module.require === 'function'
+			? (module.require.bind(module) as DesktopRequire)
+			: undefined;
+	const nodeRequire = pickDesktopRequire(
+		(window as unknown as { require?: DesktopRequire }).require,
+		moduleRequire,
+	);
 	if (!nodeRequire) throw new Error('Edge CLI 僅支援桌面版 Obsidian');
 	const childProcess = nodeRequire('child_process') as { execFile: ExecFile };
-	const fs = nodeRequire('fs/promises') as Pick<DesktopNodeModules, 'readFile' | 'rm'>;
-	const os = nodeRequire('os') as Pick<DesktopNodeModules, 'tmpdir'>;
+	const fs = nodeRequire('fs/promises') as Pick<DesktopNodeModules, 'readFile' | 'rm' | 'access' | 'readdir'>;
+	const os = nodeRequire('os') as Pick<DesktopNodeModules, 'tmpdir' | 'homedir'>;
 	const path = nodeRequire('path') as Pick<DesktopNodeModules, 'join'>;
 	return { ...childProcess, ...fs, ...os, ...path };
 }
@@ -65,12 +87,52 @@ export function edgeRate(rate: number): string {
 	return `${value >= 0 ? '+' : ''}${value}%`;
 }
 
-function runEdgeTts(args: string[], { execFile }: DesktopNodeModules): Promise<void> {
+interface ProcessFailure {
+	code?: string | number;
+	killed?: boolean;
+	message?: string;
+}
+
+/** 使用者可採取行動的錯誤，不回顯筆記內容或完整系統路徑。 */
+export function edgeFailureMessage(error: ProcessFailure): string {
+	if (error.code === 'ENOENT') return '找不到 edge-tts。請重新安裝後停用再啟用外掛。';
+	if (error.killed || error.message?.toLowerCase().includes('timeout')) return 'Edge 語音合成逾時，請確認網路後重試。';
+	const code = typeof error.code === 'string' || typeof error.code === 'number' ? `（代碼 ${error.code}）` : '';
+	return `Edge CLI 無法完成語音合成${code}。請確認網路正常後重試。`;
+}
+
+function runEdgeTts(command: string, args: string[], { execFile }: DesktopNodeModules): Promise<void> {
 	return new Promise((resolve, reject) => {
-		execFile('edge-tts', args, (error) =>
+		execFile(command, args, { timeout: 45_000, maxBuffer: 1_024 * 1_024 }, (error) =>
 			error ? reject(error instanceof Error ? error : new Error('edge-tts command failed')) : resolve(),
 		);
 	});
+}
+
+async function existingPath(path: string, modules: DesktopNodeModules): Promise<string | null> {
+	try {
+		await modules.access(path);
+		return path;
+	} catch {
+		return null;
+	}
+}
+
+/** GUI app 不會繼承 Terminal PATH；優先尋找 pip --user 的常見安裝位置。 */
+async function resolveEdgeExecutable(modules: DesktopNodeModules): Promise<string> {
+	const home = modules.homedir();
+	const direct = await existingPath(modules.join(home, '.local', 'bin', 'edge-tts'), modules);
+	if (direct) return direct;
+	try {
+		const versions = await modules.readdir(modules.join(home, 'Library', 'Python'));
+		for (const version of versions.sort().reverse()) {
+			const candidate = await existingPath(modules.join(home, 'Library', 'Python', version, 'bin', 'edge-tts'), modules);
+			if (candidate) return candidate;
+		}
+	} catch {
+		// macOS user-site Python directory 不存在時保守回退 PATH。
+	}
+	return 'edge-tts';
 }
 
 /**
@@ -85,7 +147,7 @@ export class EdgeCliSpeechClient implements EdgeSpeechClient {
 			`obsidian-tw-tts-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`,
 		);
 		try {
-			await runEdgeTts([
+			await runEdgeTts(await resolveEdgeExecutable(modules), [
 				'--voice',
 				settings.voice,
 				'--pitch',
@@ -146,6 +208,7 @@ export class EdgeTtsEngine {
 		private readonly createAudio: (blob: Blob) => EdgeAudio,
 		private readonly settings: EdgeVoiceSettings,
 		private readonly cb: EdgeTtsCallbacks = {},
+		private readonly providerLabel = 'Edge',
 	) {}
 
 	get isPlaying(): boolean { return this.playing; }
@@ -206,23 +269,35 @@ export class EdgeTtsEngine {
 	}
 
 	private async playCurrent(generation: number): Promise<void> {
+		let audio: EdgeAudio;
 		try {
 			const blob = await this.client.synthesize(this.sentences[this.index], this.settings);
 			if (generation !== this.generation || !this.playing) return;
-			const audio = this.createAudio(blob);
+			audio = this.createAudio(blob);
 			this.audio = audio;
 			audio.onEnded = () => {
 				if (generation === this.generation) this.advance();
 			};
 			audio.onError = () => {
-				if (generation === this.generation) this.fail('Edge 語音播放失敗');
+				if (generation === this.generation) this.fail(`${this.providerLabel} 語音播放失敗`);
 			};
+		} catch (error) {
+			if (generation === this.generation) {
+				this.fail(
+					this.providerLabel === 'Edge'
+						? edgeFailureMessage(error as ProcessFailure)
+						: `${this.providerLabel} 語音產生失敗。請確認設定與網路後重試。`,
+				);
+			}
+			return;
+		}
+		try {
 			this.cb.onSentenceStart?.(this.index);
 			await audio.play();
 			if (this.paused) audio.pause();
 		} catch {
 			if (generation === this.generation) {
-				this.fail('Edge 語音產生失敗。請確認已安裝 edge-tts、網路正常後重試。');
+				this.fail(`${this.providerLabel} 語音已產生，但音訊無法播放。請確認系統輸出裝置後重試。`);
 			}
 		}
 	}

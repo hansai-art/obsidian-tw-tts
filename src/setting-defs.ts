@@ -15,6 +15,7 @@ import type {
 } from 'obsidian';
 import { regionLabel } from './voice-catalog';
 import { STRINGS } from './i18n/zh-tw';
+import { cloudVoiceOptions } from './cloud-voice-catalog';
 
 /** 語音下拉需要的最小欄位(方便測試,不必造完整 SpeechSynthesisVoice)。 */
 export type VoiceLike = { name: string; lang: string };
@@ -30,7 +31,7 @@ export function voiceDropdownOptions(voices: VoiceLike[]): Record<string, string
 
 /**
  * 九個純資料 control 定義,依顯示順序:
- * 引擎下拉、Edge 語音欄位、語音下拉、語速 slider、音高 slider、自動下一篇 toggle、遞迴 toggle、發音字典 textarea、
+ * 引擎下拉、Edge/Azure 語音與 Azure 設定、系統語音下拉、語速 slider、音高 slider、自動下一篇 toggle、遞迴 toggle、發音字典 textarea、
  * 不朗讀的符號 text。
  * 語速的「回預設 / 試聽」以獨立 action 列在 settings.ts 插入(需存取 this)。
  * key 對應 TwTtsSettings 欄位,由 getControlValue / setControlValue 讀寫。
@@ -43,18 +44,33 @@ export function coreSettingDefs(voices: VoiceLike[]): SettingDefinitionControl[]
 			control: {
 				type: 'dropdown',
 				key: 'provider',
-				options: { edge: STRINGS.settingProviderEdge, local: STRINGS.settingProviderLocal },
+				options: { local: STRINGS.settingProviderLocal, edge: STRINGS.settingProviderEdge, azure: STRINGS.settingProviderAzure },
 			},
 		},
 		{
 			name: STRINGS.settingEdgeVoice,
 			desc: STRINGS.settingEdgeVoiceDesc,
 			control: {
-				type: 'text',
+				type: 'dropdown',
 				key: 'edgeVoice',
-				placeholder: 'zh-CN-XiaoxiaoNeural',
-			},
-		},
+				options: cloudVoiceOptions(),
+				},
+				},
+				{
+				name: STRINGS.settingAzureKey,
+				desc: STRINGS.settingAzureKeyDesc,
+				control: { type: 'text', key: 'azureKey', placeholder: STRINGS.settingAzureKeyPlaceholder },
+				},
+				{
+				name: STRINGS.settingAzureRegion,
+				desc: STRINGS.settingAzureRegionDesc,
+				control: { type: 'text', key: 'azureRegion', placeholder: 'eastasia' },
+				},
+				{
+				name: STRINGS.settingAzureVoice,
+				desc: STRINGS.settingAzureVoiceDesc,
+				control: { type: 'dropdown', key: 'azureVoice', options: cloudVoiceOptions() },
+				},
 		{
 			name: STRINGS.settingVoiceName,
 			desc: voices.length === 0 ? STRINGS.settingNoVoices : STRINGS.settingVoiceDesc,

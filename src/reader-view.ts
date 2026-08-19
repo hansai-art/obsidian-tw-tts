@@ -23,12 +23,13 @@ import {
 	type PronunciationRule,
 } from './pronunciation';
 import { playbackError, type ActionableError } from './playback-error';
-import { shouldUseEdgeProvider } from './provider-policy';
+import { shouldUseAzureProvider, shouldUseEdgeProvider } from './provider-policy';
 import {
 	createEdgeAudio,
 	EdgeCliSpeechClient,
 	EdgeTtsEngine,
 } from './edge-tts';
+import { ObsidianAzureSpeechClient } from './azure-obsidian';
 
 export const VIEW_TYPE_TW_TTS = 'tw-read-aloud-view';
 
@@ -194,6 +195,10 @@ export class TwTtsReaderView extends ItemView {
 			this.beginEdgePlayback(sentences, startIndex);
 			return;
 		}
+		if (shouldUseAzureProvider(this.plugin.settings.provider)) {
+			this.beginAzurePlayback(sentences, startIndex);
+			return;
+		}
 		const resolved = this.resolveVoice();
 		if (resolved) this.beginPlayback(sentences, startIndex, resolved);
 	}
@@ -240,6 +245,10 @@ export class TwTtsReaderView extends ItemView {
 			this.beginEdgePlayback(sentences, startIndex);
 			return;
 		}
+		if (shouldUseAzureProvider(this.plugin.settings.provider)) {
+			this.beginAzurePlayback(sentences, startIndex);
+			return;
+		}
 		const resolved = this.resolveVoice();
 		if (resolved) this.beginPlayback(sentences, startIndex, resolved);
 	}
@@ -274,6 +283,31 @@ export class TwTtsReaderView extends ItemView {
 			},
 		);
 		// Edge 的音檔也應套用既有發音字典與靜音符號，再由引擎逐句生成與播放。
+		const spoken = sentences.map((text) =>
+			applyPronunciation(applyPronunciation(text, this.rules), this.silentRules),
+		);
+		this.engine.start(spoken, startIndex);
+		this.setPlayingUI(true, false);
+	}
+
+	private beginAzurePlayback(sentences: string[], startIndex: number): void {
+		this.renderSentenceList(sentences);
+		this.rules = parseRules(this.plugin.settings.pronunciationRules);
+		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
+		this.engine = new EdgeTtsEngine(
+			new ObsidianAzureSpeechClient({ key: this.plugin.settings.azureKey, region: this.plugin.settings.azureRegion }),
+			createEdgeAudio,
+			{ voice: this.plugin.settings.azureVoice, rate: this.plugin.settings.rate, pitch: this.plugin.settings.pitch },
+			{
+				onSentenceStart: (i) => this.highlight(i),
+				onDone: () => this.onFinished(),
+				onError: (m) => {
+					new Notice(m);
+					this.onFinished();
+				},
+			},
+			'Azure Speech',
+		);
 		const spoken = sentences.map((text) =>
 			applyPronunciation(applyPronunciation(text, this.rules), this.silentRules),
 		);

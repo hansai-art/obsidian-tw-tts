@@ -1,5 +1,5 @@
 /** 支援範圍的唯一正本：中文知識庫只列中文、英文系統語音。 */
-export type TtsProvider = 'local' | 'edge';
+export type TtsProvider = 'local' | 'edge' | 'azure';
 
 function normaliseLanguage(language: string): string {
 	return language.toLowerCase().replace('_', '-');
@@ -15,6 +15,11 @@ export function shouldUseEdgeProvider(provider: TtsProvider, isDesktop: boolean)
 	return provider === 'edge' && isDesktop;
 }
 
+/** Azure Speech 是官方 HTTPS API，桌機與行動版都可使用。 */
+export function shouldUseAzureProvider(provider: TtsProvider): boolean {
+	return provider === 'azure';
+}
+
 /** 試聽稿必須符合選定聲音的語言；非英文保守使用中文稿。 */
 export function previewLanguage(language: string): 'zh' | 'en' {
 	return normaliseLanguage(language).startsWith('en') ? 'en' : 'zh';
@@ -26,5 +31,7 @@ export function shouldAutoPreviewOnSettingChange(
 	provider: TtsProvider,
 	isDesktop: boolean,
 ): boolean {
-	return settingKey === 'voiceName' && !shouldUseEdgeProvider(provider, isDesktop);
+	if (provider === 'local') return settingKey === 'voiceName';
+	if (provider === 'edge') return isDesktop && settingKey === 'edgeVoice';
+	return settingKey === 'azureVoice';
 }
