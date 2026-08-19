@@ -9,6 +9,7 @@
  *   4. 保留大多數語音,只把「角色/機械音」壓到最後,並限制其數量,
  *      讓清單維持在少數幾個好選項(其餘尾巴剔除)。
  */
+import { isSupportedSystemVoiceLanguage } from './provider-policy';
 
 /** Apple 的角色/特色語音家族(各平台通常品質較差,壓到最後)。 */
 const CHARACTER_TOKENS = [
@@ -67,10 +68,6 @@ function isChinese(v: SpeechSynthesisVoice): boolean {
 	return normLang(v.lang).startsWith('zh');
 }
 
-function isEnglish(v: SpeechSynthesisVoice): boolean {
-	return normLang(v.lang).startsWith('en');
-}
-
 /** 排序鍵:先地區、再品質、最後名稱(穩定)。 */
 function rankOf(v: SpeechSynthesisVoice): [number, number, string] {
 	return [regionOrder(v.lang), qualityTier(v.name), (v.name || '').toLowerCase()];
@@ -117,7 +114,7 @@ export function availableVoices(voices: SpeechSynthesisVoice[]): SpeechSynthesis
 	const chinese = curatedVoices(voices);
 	const chineseNames = new Set(chinese.map((v) => v.name));
 	const english = voices
-		.filter((v) => isEnglish(v) && !chineseNames.has(v.name))
+		.filter((v) => isSupportedSystemVoiceLanguage(v.lang) && !chineseNames.has(v.name))
 		.sort((a, b) =>
 			normLang(a.lang).localeCompare(normLang(b.lang)) || a.name.localeCompare(b.name),
 		);

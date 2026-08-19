@@ -16,10 +16,11 @@ import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
 import { createEdgeAudio, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
+import { previewLanguage, shouldUseEdgeProvider, type TtsProvider } from './provider-policy';
 
 export interface TwTtsSettings {
 	/** local = Web Speech 系統語音；edge = 桌面 edge-tts CLI。 */
-	provider: 'local' | 'edge';
+	provider: TtsProvider;
 	/** Edge CLI 語音名稱；僅在 desktop Edge 引擎使用。 */
 	edgeVoice: string;
 	/** 使用者選定的語音 name;空字串 = 自動挑目前平台最佳中文語音。 */
@@ -95,7 +96,9 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			previewAction,
 			stopPreviewAction,
 			providerDef,
-			edgeVoiceDef,
+			...(shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)
+				? [edgeVoiceDef]
+				: []),
 			voiceDef,
 			rateDef,
 			resetAction,
@@ -118,6 +121,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	async setControlValue(key: string, value: unknown): Promise<void> {
 		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
 		await this.plugin.saveSettings();
+		if (key === 'provider') (this as unknown as { update?: () => void }).update?.();
 	}
 
 	/** 語速回預設 1.0x(宣告式路徑用;重繪讓 slider 反映新值)。 */
@@ -136,6 +140,11 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
+		this.renderLegacySettings();
+	}
+
+	/** Obsidian 1.12 與更早版本的設定頁；切換引擎時只重繪這個 fallback。 */
+	private renderLegacySettings(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
@@ -160,22 +169,25 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				dd.addOption('local', STRINGS.settingProviderLocal);
 				dd.setValue(this.plugin.settings.provider);
 				dd.onChange(async (val) => {
-					this.plugin.settings.provider = val as 'local' | 'edge';
+					this.plugin.settings.provider = val as TtsProvider;
 					await this.plugin.saveSettings();
+					this.renderLegacySettings();
 				});
 			});
 
-		new Setting(containerEl)
-			.setName(STRINGS.settingEdgeVoice)
-			.setDesc(STRINGS.settingEdgeVoiceDesc)
-			.addText((tc) => {
-				tc.setPlaceholder(DEFAULT_SETTINGS.edgeVoice)
-					.setValue(this.plugin.settings.edgeVoice)
-					.onChange(async (val) => {
-						this.plugin.settings.edgeVoice = val.trim() || DEFAULT_SETTINGS.edgeVoice;
-						await this.plugin.saveSettings();
-					});
-			});
+		if (shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)) {
+			new Setting(containerEl)
+				.setName(STRINGS.settingEdgeVoice)
+				.setDesc(STRINGS.settingEdgeVoiceDesc)
+				.addText((tc) => {
+					tc.setPlaceholder(DEFAULT_SETTINGS.edgeVoice)
+						.setValue(this.plugin.settings.edgeVoice)
+						.onChange(async (val) => {
+							this.plugin.settings.edgeVoice = val.trim() || DEFAULT_SETTINGS.edgeVoice;
+							await this.plugin.saveSettings();
+						});
+				});
+		}
 
 		const voiceSetting = new Setting(containerEl)
 			.setName(STRINGS.settingVoiceName)
@@ -321,7 +333,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 
 	/** 用目前設定的中文或英文語音、語速與音高唸一句範例。 */
 	private preview(): void {
-		if (this.plugin.settings.provider === 'edge' && Platform.isDesktopApp) {
+		if (shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)) {
 			void this.previewEdge();
 			return;
 		}
@@ -346,7 +358,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			return;
 		}
 		synth.cancel();
-		const sample = voice.lang.toLowerCase().startsWith('en')
+		const sample = previewLanguage(voice.lang) === 'en'
 			? STRINGS.previewSampleEnglish
 			: STRINGS.previewSample;
 		const u = new SpeechSynthesisUtterance(sample);
@@ -361,7 +373,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		this.stopPreview();
 		try {
 			const voice = this.plugin.settings.edgeVoice;
-			const sample = voice.toLowerCase().startsWith('en-')
+			const sample = previewLanguage(voice) === 'en'
 				? STRINGS.previewSampleEnglish
 				: STRINGS.previewSample;
 			const blob = await new EdgeCliSpeechClient().synthesize(sample, {

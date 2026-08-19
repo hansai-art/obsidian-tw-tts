@@ -23,6 +23,7 @@ import {
 	type PronunciationRule,
 } from './pronunciation';
 import { playbackError, type ActionableError } from './playback-error';
+import { shouldUseEdgeProvider } from './provider-policy';
 import {
 	createEdgeAudio,
 	EdgeCliSpeechClient,
@@ -247,7 +248,7 @@ export class TwTtsReaderView extends ItemView {
 
 	private shouldUseEdge(): boolean {
 		// iOS / Android 沒有 Node child_process；設定 Edge 時行動版仍安全回落系統語音。
-		return this.plugin.settings.provider === 'edge' && Platform.isDesktopApp;
+		return shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp);
 	}
 
 	private beginEdgePlayback(sentences: string[], startIndex: number): void {
