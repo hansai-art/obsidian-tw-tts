@@ -8,7 +8,12 @@ import {
 } from 'obsidian';
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
-import { TtsEngine, type TtsSynth, type TtsUtterance } from './tts-engine';
+import {
+	semitonesToSpeechPitch,
+	TtsEngine,
+	type TtsSynth,
+	type TtsUtterance,
+} from './tts-engine';
 import { pickVoice } from './voice-catalog';
 import { splitIntoSentences } from './sentence-splitter';
 import {
@@ -270,6 +275,7 @@ export class TwTtsReaderView extends ItemView {
 				createUtterance,
 				voice,
 				rate: this.plugin.settings.rate,
+				pitch: semitonesToSpeechPitch(this.plugin.settings.pitch),
 				lang: voice.lang,
 			},
 			{

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+	availableVoices,
 	curatedVoices,
 	pickVoice,
 	qualityTier,
@@ -83,6 +84,15 @@ test('curatedVoices excludes non-Chinese voices', () => {
 	const result = curatedVoices(voices);
 	assert.equal(result.length, 1);
 	assert.equal(result[0].name, 'Meijia');
+});
+
+test('availableVoices keeps curated Chinese first and exposes other installed languages', () => {
+	const result = availableVoices([
+		v('Ava', 'en-US'),
+		v('Yunyang', 'zh-CN'),
+		v('Amelie', 'fr-FR'),
+	]);
+	assert.deepEqual(result.map((voice) => voice.name), ['Yunyang', 'Ava', 'Amelie']);
 });
 
 test('pickVoice returns the best curated voice when no preference', () => {

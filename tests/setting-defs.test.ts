@@ -21,12 +21,12 @@ test('voiceDropdownOptions labels each voice with its region', () => {
 	assert.equal(opts['Ting-Ting'], 'Ting-Ting（大陸）');
 });
 
-test('coreSettingDefs returns the six settings in display order', () => {
+test('coreSettingDefs returns the seven settings in display order', () => {
 	const defs = coreSettingDefs([]);
-	assert.equal(defs.length, 6);
+	assert.equal(defs.length, 7);
 	assert.deepEqual(
 		defs.map((d) => d.control.type),
-		['dropdown', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
+		['dropdown', 'slider', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
 	);
 });
 
@@ -38,6 +38,7 @@ test('coreSettingDefs keys match the TwTtsSettings fields exactly', () => {
 		[
 			'voiceName',
 			'rate',
+			'pitch',
 			'autoNextInFolder',
 			'folderQueueRecursive',
 			'pronunciationRules',
@@ -66,7 +67,7 @@ test('slider def carries the 0.5-2.0 range and a 1-decimal formatter', () => {
 });
 
 test('pronunciation textarea keeps its placeholder and 6 rows', () => {
-	const ta = coreSettingDefs([])[4].control;
+	const ta = coreSettingDefs([])[5].control;
 	assert.equal(ta.type, 'textarea');
 	if (ta.type !== 'textarea') return;
 	assert.equal(ta.rows, 6);
@@ -74,7 +75,7 @@ test('pronunciation textarea keeps its placeholder and 6 rows', () => {
 });
 
 test('silent-symbols field is a single-line text input with the symbol hint', () => {
-	const tc = coreSettingDefs([])[5].control;
+	const tc = coreSettingDefs([])[6].control;
 	assert.equal(tc.type, 'text');
 	if (tc.type !== 'text') return;
 	assert.equal(tc.key, 'silentSymbols');

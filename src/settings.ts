@@ -11,15 +11,18 @@ import {
 } from 'obsidian';
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
-import { curatedVoices, pickVoice, regionLabel } from './voice-catalog';
+import { availableVoices, pickVoice, regionLabel } from './voice-catalog';
 import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
+import { semitonesToSpeechPitch } from './tts-engine';
 
 export interface TwTtsSettings {
 	/** 使用者選定的語音 name;空字串 = 自動挑目前平台最佳中文語音。 */
 	voiceName: string;
 	/** 語速倍率 0.5 ~ 2.0。 */
 	rate: number;
+	/** 音高，使用半音表示 -10 ~ +10。 */
+	pitch: number;
 	/** 單篇讀完自動唸同資料夾下一篇。 */
 	autoNextInFolder: boolean;
 	/** 右鍵資料夾連播時是否遞迴子資料夾。 */
@@ -33,6 +36,7 @@ export interface TwTtsSettings {
 export const DEFAULT_SETTINGS: TwTtsSettings = {
 	voiceName: '',
 	rate: 1.0,
+	pitch: 0,
 	autoNextInFolder: false,
 	folderQueueRecursive: false,
 	pronunciationRules: '',
@@ -54,8 +58,8 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	 */
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const synth = window.speechSynthesis;
-		const voices = synth ? curatedVoices(synth.getVoices()) : [];
-		const [voiceDef, rateDef, autoNextDef, folderDef, pronDef, silentDef] =
+		const voices = synth ? availableVoices(synth.getVoices()) : [];
+		const [voiceDef, rateDef, pitchDef, autoNextDef, folderDef, pronDef, silentDef] =
 			coreSettingDefs(voices);
 
 		const resetAction: SettingDefinitionAction = {
@@ -68,11 +72,19 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			name: STRINGS.previewButton,
 			action: () => this.preview(),
 		};
+		const resetPitchAction: SettingDefinitionAction = {
+			name: STRINGS.settingPitchReset,
+			action: () => {
+				void this.resetPitch();
+			},
+		};
 
 		return [
 			voiceDef,
 			rateDef,
 			resetAction,
+			pitchDef,
+			resetPitchAction,
 			previewAction,
 			autoNextDef,
 			folderDef,
@@ -102,12 +114,18 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		(this as unknown as { update?: () => void }).update?.();
 	}
 
+	private async resetPitch(): Promise<void> {
+		this.plugin.settings.pitch = 0;
+		await this.plugin.saveSettings();
+		(this as unknown as { update?: () => void }).update?.();
+	}
+
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 
 		const synth = window.speechSynthesis;
-		const voices = synth ? curatedVoices(synth.getVoices()) : [];
+		const voices = synth ? availableVoices(synth.getVoices()) : [];
 
 		const voiceSetting = new Setting(containerEl)
 			.setName(STRINGS.settingVoiceName)
@@ -152,6 +170,28 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				btn.setIcon('play')
 					.setTooltip(STRINGS.previewButton)
 					.onClick(() => this.preview());
+			});
+
+		let pitchSlider: SliderComponent;
+		new Setting(containerEl)
+			.setName(STRINGS.settingPitch)
+			.setDesc(STRINGS.settingPitchDesc)
+			.addSlider((sl) => {
+				pitchSlider = sl;
+				sl.setLimits(-10, 10, 1).setValue(this.plugin.settings.pitch);
+				sl.onChange(async (val) => {
+					this.plugin.settings.pitch = val;
+					await this.plugin.saveSettings();
+				});
+			})
+			.addExtraButton((btn) => {
+				btn.setIcon('rotate-ccw')
+					.setTooltip(STRINGS.settingPitchReset)
+					.onClick(async () => {
+						this.plugin.settings.pitch = 0;
+						pitchSlider.setValue(0);
+						await this.plugin.saveSettings();
+					});
 			});
 
 		new Setting(containerEl)
@@ -260,6 +300,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		u.voice = voice;
 		u.lang = voice.lang;
 		u.rate = this.plugin.settings.rate;
+		u.pitch = semitonesToSpeechPitch(this.plugin.settings.pitch);
 		synth.speak(u);
 	}
 }

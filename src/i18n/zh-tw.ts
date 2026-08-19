@@ -69,11 +69,14 @@ export const STRINGS = {
 
 	// 設定頁
 	settingVoiceName: '語音',
-	settingVoiceDesc: '選擇朗讀用的語音。清單依品質排序,最上面是目前平台最推薦的。',
+	settingVoiceDesc: '選擇朗讀用的語音。中文依品質排序在前，其餘列出系統已安裝的多國語音。',
 	settingVoiceAuto: '自動(推薦最佳語音)',
 	settingRate: '語速',
 	settingRateDesc: '朗讀速度倍率:0.5 最慢,2.0 最快。',
 	settingRateReset: '回到預設(1.0x)',
+	settingPitch: '音高',
+	settingPitchDesc: '以半音調整音高：-10 到 +10。-7 可得到較低沉的男聲感；實際音色仍由系統語音決定。',
+	settingPitchReset: '回到預設音高(0)',
 	settingNoVoices: '目前偵測不到任何語音,請確認系統已安裝語音。',
 	settingAutoNext: '單篇讀完自動下一篇',
 	settingAutoNextDesc: '朗讀完一篇後,自動接著唸同資料夾的下一篇筆記。',
@@ -118,8 +121,8 @@ export const STRINGS = {
 			},
 			{
 				icon: 'sliders-horizontal',
-				zh: '調整聲音:上方可選語音、偏好男聲/女聲、拉語速,按「試聽」先聽一句。',
-				en: 'Tune the voice: pick a voice, prefer male/female, adjust speed above, and press 試聽 (Preview) to sample it.',
+				zh: '調整聲音:上方可選系統已安裝的多國語音、拉語速與音高；按「試聽」先聽一句。',
+				en: 'Tune the voice: pick any installed system voice, adjust speed and pitch, then press 試聽 (Preview) to sample it.',
 			},
 		],
 		noVoiceHeading: '沒有聲音?請先在系統安裝中文語音 · No sound? Install a Chinese voice first',

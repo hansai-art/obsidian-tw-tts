@@ -105,6 +105,18 @@ export function curatedVoices(
 	return [...good, ...character];
 }
 
+/** 設定頁列出所有已安裝的系統語音；中文維持既有品質排序。 */
+export function availableVoices(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
+	const chinese = curatedVoices(voices);
+	const chineseNames = new Set(chinese.map((v) => v.name));
+	const other = voices
+		.filter((v) => !chineseNames.has(v.name))
+		.sort((a, b) =>
+			normLang(a.lang).localeCompare(normLang(b.lang)) || a.name.localeCompare(b.name),
+		);
+	return [...chinese, ...other];
+}
+
 /**
  * 選出要使用的語音。
  * 1) 使用者明確指定名稱且存在 → 用它(不限語言,尊重使用者選擇)。

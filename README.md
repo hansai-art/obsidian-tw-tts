@@ -17,7 +17,7 @@
 - 獨立**朗讀窗格**逐句顯示筆記;唸到哪句那句就反白 + 自動捲到可視範圍
 - 播放 / 暫停 / 繼續 / 停止 / 上一句 / 下一句;播放當下可調語速
 - 點窗格裡任一句,從那句開始唸
-- 設定:選語音(清單依品質排序,預設自動挑最佳)、調語速
+- 設定:選系統已安裝的多國語音(預設自動挑最佳中文)、調語速與音高
 - 全繁體中文介面
 
 ### 安裝
@@ -56,7 +56,8 @@
 
 設定 → 社群外掛 → Hans TW TTS:
 
-- **語音**:預設「自動(推薦最佳語音)」。下拉清單依品質排序,最上面是目前平台最推薦的(台灣中文優先),並標了地區(台灣/大陸/香港)。品質太差或重複的角色/機械音會自動壓到最後或隱藏。
+- **語音**:預設「自動(推薦最佳語音)」。下拉清單先列台灣中文優先的高品質中文語音，再列系統已安裝的多國語音。可直接選 China - Yunyang（若已安裝）。
+- **音高**:-10 到 +10 半音，0 為原始音高。想要較低沉男聲感可用 **-7**；外掛會換算為 Web Speech API 支援的音高倍率，實際音色仍取決於該系統語音。
 - **語速**:0.5(最慢)到 2.0(最快)。旁邊有**回到預設(1.0x)**與**試聽**兩顆按鈕。
 - **播放當下也能調語速**:朗讀窗格控制列有 `−  1.0x  +`,點中間數字即回到 1.0x。
 - **單篇讀完自動下一篇**:開啟後,唸完一篇會自動接著唸同資料夾的下一篇。
@@ -113,7 +114,7 @@ An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using
 - A dedicated **reader pane** shows the note sentence by sentence; the sentence being read is highlighted and auto-scrolled into view
 - Play / Pause / Resume / Stop / Previous / Next sentence
 - Click any sentence in the pane to start reading from there
-- Settings: choose a voice (defaults to a Traditional Chinese voice) and adjust speed
+- Settings: choose any installed system voice (the best Chinese voice remains the automatic default), adjust speed and pitch
 - Traditional Chinese interface
 
 ### Installation
@@ -128,7 +129,7 @@ An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using
 
 Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection, or "從游標處開始唸" to start from the sentence at your cursor. Right-click a folder → "朗讀此資料夾" to play every note in it back-to-back. The reader pane opens on the right, highlights each sentence as it is read (with the note title + position when playing a folder), and click any sentence to start from there. "停止朗讀" stops playback.
 
-Settings let you pick a voice (quality-ranked, best first, Taiwan Chinese preferred, region-labelled; low-quality character voices sink or hide), adjust/reset/preview speed, toggle auto-advance to the next note in a folder, choose whether folder playback recurses into subfolders, define a **pronunciation dictionary** (one `原文=唸法` rule per line) to fix how proper nouns and heteronyms are read — no other Obsidian TTS plugin has this — and list **silent symbols** (space-separated, e.g. `○ ● ◎ ※`) that are stripped before speaking, so bullet glyphs are not read aloud (`○` would otherwise be voiced as "zero"); a line consisting only of such symbols is skipped. The reader pane also has a live speed control (− [1.0x] +).
+Settings let you pick any installed system voice (quality-ranked Chinese voices come first, while the best Chinese voice remains the automatic default), adjust/reset/preview speed and adjust pitch in semitones (-10 to +10; -7 gives a lower voice), toggle auto-advance to the next note in a folder, choose whether folder playback recurses into subfolders, define a **pronunciation dictionary** (one `原文=唸法` rule per line) to fix how proper nouns and heteronyms are read — no other Obsidian TTS plugin has this — and list **silent symbols** (space-separated, e.g. `○ ● ◎ ※`) that are stripped before speaking, so bullet glyphs are not read aloud (`○` would otherwise be voiced as "zero"); a line consisting only of such symbols is skipped. The reader pane also has a live speed control (− [1.0x] +).
 
 ### Platform support
 

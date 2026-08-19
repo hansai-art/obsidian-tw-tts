@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TtsEngine, type TtsUtterance, type TtsSynth } from '../src/tts-engine';
+import {
+	semitonesToSpeechPitch,
+	TtsEngine,
+	type TtsUtterance,
+	type TtsSynth,
+} from '../src/tts-engine';
 
 /** 可手動觸發事件的假 speechSynthesis,用來測試排序邏輯。 */
 class MockSynth implements TtsSynth {
@@ -32,7 +37,7 @@ class MockSynth implements TtsSynth {
 }
 
 function makeUtterance(text: string): TtsUtterance {
-	return { text, voice: null, rate: 1, lang: '', onstart: null, onend: null, onerror: null };
+	return { text, voice: null, rate: 1, pitch: 1, lang: '', onstart: null, onend: null, onerror: null };
 }
 
 function setup(cb = {}) {
@@ -88,6 +93,19 @@ test('applies voice and rate to each utterance', () => {
 	engine.start(['甲']);
 	assert.equal(synth.last().voice, fakeVoice);
 	assert.equal(synth.last().rate, 1.5);
+});
+
+test('applies the requested pitch to each utterance', () => {
+	const synth = new MockSynth();
+	const engine = new TtsEngine({ synth, createUtterance: makeUtterance, pitch: 0.67 }, {});
+	engine.start(['甲']);
+	assert.equal(synth.last().pitch, 0.67);
+});
+
+test('converts semitone pitch to the Web Speech API multiplier', () => {
+	assert.equal(semitonesToSpeechPitch(0), 1);
+	assert.equal(semitonesToSpeechPitch(-7), 2 ** (-7 / 12));
+	assert.equal(semitonesToSpeechPitch(24), 2);
 });
 
 test('stop cancels and a stale onend does not advance', () => {

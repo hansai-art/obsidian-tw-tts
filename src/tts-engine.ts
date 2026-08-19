@@ -10,6 +10,7 @@ export interface TtsUtterance {
 	text: string;
 	voice: SpeechSynthesisVoice | null;
 	rate: number;
+	pitch: number;
 	lang: string;
 	onstart: (() => void) | null;
 	onend: (() => void) | null;
@@ -29,6 +30,7 @@ export interface TtsEngineOptions {
 	createUtterance: (text: string) => TtsUtterance;
 	voice?: SpeechSynthesisVoice | null;
 	rate?: number;
+	pitch?: number;
 	lang?: string;
 }
 
@@ -36,6 +38,11 @@ export interface TtsEngineCallbacks {
 	onSentenceStart?: (index: number) => void;
 	onDone?: () => void;
 	onError?: (message: string) => void;
+}
+
+/** Web Speech API 的 pitch 是倍率；設定頁以使用者習慣的半音表示。 */
+export function semitonesToSpeechPitch(semitones: number): number {
+	return Math.min(2, Math.max(0, 2 ** (semitones / 12)));
 }
 
 export class TtsEngine {
@@ -169,6 +176,7 @@ export class TtsEngine {
 
 		if (this.opts.voice) u.voice = this.opts.voice;
 		u.rate = this.opts.rate ?? 1;
+		u.pitch = this.opts.pitch ?? 1;
 		if (this.opts.lang) u.lang = this.opts.lang;
 
 		const idx = this.index;
