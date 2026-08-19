@@ -1,3 +1,33 @@
+type ExecFile = (
+	file: string,
+	args: string[],
+	callback: (error: Error | null) => void,
+) => void;
+
+interface DesktopNodeModules {
+	execFile: ExecFile;
+	readFile(path: string): Promise<Uint8Array>;
+	rm(path: string, options: { force: boolean }): Promise<void>;
+	tmpdir(): string;
+	join(...paths: string[]): string;
+}
+
+type DesktopRequire = (id: string) => unknown;
+
+/**
+ * Obsidian 桌面版 Electron 提供 window.require；呼叫端已以 Platform.isDesktopApp
+ * 限制 Edge provider，這裡再檢查一次，避免行動版取用 Node API。
+ */
+function desktopNodeModules(): DesktopNodeModules {
+	const nodeRequire = (window as unknown as { require?: DesktopRequire }).require;
+	if (!nodeRequire) throw new Error('Edge CLI 僅支援桌面版 Obsidian');
+	const childProcess = nodeRequire('child_process') as { execFile: ExecFile };
+	const fs = nodeRequire('fs/promises') as Pick<DesktopNodeModules, 'readFile' | 'rm'>;
+	const os = nodeRequire('os') as Pick<DesktopNodeModules, 'tmpdir'>;
+	const path = nodeRequire('path') as Pick<DesktopNodeModules, 'join'>;
+	return { ...childProcess, ...fs, ...os, ...path };
+}
+
 /** Edge CLI 的語音設定。音高使用 edge-tts 原生的 Hz 表示。 */
 export interface EdgeVoiceSettings {
 	voice: string;
@@ -35,8 +65,7 @@ export function edgeRate(rate: number): string {
 	return `${value >= 0 ? '+' : ''}${value}%`;
 }
 
-async function runEdgeTts(args: string[]): Promise<void> {
-	const { execFile } = await import('child_process');
+function runEdgeTts(args: string[], { execFile }: DesktopNodeModules): Promise<void> {
 	return new Promise((resolve, reject) => {
 		execFile('edge-tts', args, (error) =>
 			error ? reject(error instanceof Error ? error : new Error('edge-tts command failed')) : resolve(),
@@ -50,13 +79,9 @@ async function runEdgeTts(args: string[]): Promise<void> {
  */
 export class EdgeCliSpeechClient implements EdgeSpeechClient {
 	async synthesize(text: string, settings: EdgeVoiceSettings): Promise<Blob> {
-		const [fs, os, path] = await Promise.all([
-			import('fs/promises'),
-			import('os'),
-			import('path'),
-		]);
-		const output = path.join(
-			os.tmpdir(),
+		const modules = desktopNodeModules();
+		const output = modules.join(
+			modules.tmpdir(),
 			`obsidian-tw-tts-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`,
 		);
 		try {
@@ -71,10 +96,10 @@ export class EdgeCliSpeechClient implements EdgeSpeechClient {
 				text,
 				'--write-media',
 				output,
-			]);
-			return new Blob([await fs.readFile(output)], { type: 'audio/mpeg' });
+			], modules);
+			return new Blob([await modules.readFile(output)], { type: 'audio/mpeg' });
 		} finally {
-			await fs.rm(output, { force: true });
+			await modules.rm(output, { force: true });
 		}
 	}
 }

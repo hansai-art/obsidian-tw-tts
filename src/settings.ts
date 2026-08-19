@@ -152,10 +152,10 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			.setName(STRINGS.settingEdgeVoice)
 			.setDesc(STRINGS.settingEdgeVoiceDesc)
 			.addText((tc) => {
-				tc.setPlaceholder('zh-CN-XiaoxiaoNeural')
+				tc.setPlaceholder(DEFAULT_SETTINGS.edgeVoice)
 					.setValue(this.plugin.settings.edgeVoice)
 					.onChange(async (val) => {
-						this.plugin.settings.edgeVoice = val.trim() || 'zh-CN-XiaoxiaoNeural';
+						this.plugin.settings.edgeVoice = val.trim() || DEFAULT_SETTINGS.edgeVoice;
 						await this.plugin.saveSettings();
 					});
 			});
