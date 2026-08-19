@@ -17,6 +17,10 @@ import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
 
 export interface TwTtsSettings {
+	/** local = Web Speech 系統語音；edge = 桌面 edge-tts CLI。 */
+	provider: 'local' | 'edge';
+	/** Edge CLI 語音名稱；僅在 desktop Edge 引擎使用。 */
+	edgeVoice: string;
 	/** 使用者選定的語音 name;空字串 = 自動挑目前平台最佳中文語音。 */
 	voiceName: string;
 	/** 語速倍率 0.5 ~ 2.0。 */
@@ -34,6 +38,8 @@ export interface TwTtsSettings {
 }
 
 export const DEFAULT_SETTINGS: TwTtsSettings = {
+	provider: 'local',
+	edgeVoice: 'zh-CN-XiaoxiaoNeural',
 	voiceName: '',
 	rate: 1.0,
 	pitch: 0,
@@ -59,7 +65,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];
-		const [voiceDef, rateDef, pitchDef, autoNextDef, folderDef, pronDef, silentDef] =
+		const [providerDef, edgeVoiceDef, voiceDef, rateDef, pitchDef, autoNextDef, folderDef, pronDef, silentDef] =
 			coreSettingDefs(voices);
 
 		const resetAction: SettingDefinitionAction = {
@@ -80,6 +86,8 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		};
 
 		return [
+			providerDef,
+			edgeVoiceDef,
 			voiceDef,
 			rateDef,
 			resetAction,
@@ -126,6 +134,31 @@ export class TwTtsSettingTab extends PluginSettingTab {
 
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingProvider)
+			.setDesc(STRINGS.settingProviderDesc)
+			.addDropdown((dd) => {
+				dd.addOption('edge', STRINGS.settingProviderEdge);
+				dd.addOption('local', STRINGS.settingProviderLocal);
+				dd.setValue(this.plugin.settings.provider);
+				dd.onChange(async (val) => {
+					this.plugin.settings.provider = val as 'local' | 'edge';
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingEdgeVoice)
+			.setDesc(STRINGS.settingEdgeVoiceDesc)
+			.addText((tc) => {
+				tc.setPlaceholder('zh-CN-XiaoxiaoNeural')
+					.setValue(this.plugin.settings.edgeVoice)
+					.onChange(async (val) => {
+						this.plugin.settings.edgeVoice = val.trim() || 'zh-CN-XiaoxiaoNeural';
+						await this.plugin.saveSettings();
+					});
+			});
 
 		const voiceSetting = new Setting(containerEl)
 			.setName(STRINGS.settingVoiceName)

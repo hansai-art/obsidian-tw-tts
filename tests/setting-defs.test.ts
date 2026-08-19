@@ -21,12 +21,12 @@ test('voiceDropdownOptions labels each voice with its region', () => {
 	assert.equal(opts['Ting-Ting'], 'Ting-Ting（大陸）');
 });
 
-test('coreSettingDefs returns the seven settings in display order', () => {
+test('coreSettingDefs starts with provider and Edge voice controls and exposes nine settings in display order', () => {
 	const defs = coreSettingDefs([]);
-	assert.equal(defs.length, 7);
+	assert.equal(defs.length, 9);
 	assert.deepEqual(
 		defs.map((d) => d.control.type),
-		['dropdown', 'slider', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
+		['dropdown', 'text', 'dropdown', 'slider', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
 	);
 });
 
@@ -36,6 +36,8 @@ test('coreSettingDefs keys match the TwTtsSettings fields exactly', () => {
 	assert.deepEqual(
 		defs.map((d) => d.control.key),
 		[
+			'provider',
+			'edgeVoice',
 			'voiceName',
 			'rate',
 			'pitch',
@@ -56,7 +58,7 @@ test('voice desc switches to the no-voices hint when the list is empty', () => {
 });
 
 test('slider def carries the 0.5-2.0 range and a 1-decimal formatter', () => {
-	const slider = coreSettingDefs([])[1].control;
+	const slider = coreSettingDefs([])[3].control;
 	assert.equal(slider.type, 'slider');
 	if (slider.type !== 'slider') return;
 	assert.equal(slider.min, 0.5);
@@ -67,7 +69,7 @@ test('slider def carries the 0.5-2.0 range and a 1-decimal formatter', () => {
 });
 
 test('pronunciation textarea keeps its placeholder and 6 rows', () => {
-	const ta = coreSettingDefs([])[5].control;
+	const ta = coreSettingDefs([])[7].control;
 	assert.equal(ta.type, 'textarea');
 	if (ta.type !== 'textarea') return;
 	assert.equal(ta.rows, 6);
@@ -75,7 +77,7 @@ test('pronunciation textarea keeps its placeholder and 6 rows', () => {
 });
 
 test('silent-symbols field is a single-line text input with the symbol hint', () => {
-	const tc = coreSettingDefs([])[6].control;
+	const tc = coreSettingDefs([])[8].control;
 	assert.equal(tc.type, 'text');
 	if (tc.type !== 'text') return;
 	assert.equal(tc.key, 'silentSymbols');

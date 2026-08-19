@@ -29,14 +29,32 @@ export function voiceDropdownOptions(voices: VoiceLike[]): Record<string, string
 }
 
 /**
- * 七個純資料 control 定義,依顯示順序:
- * 語音下拉、語速 slider、音高 slider、自動下一篇 toggle、遞迴 toggle、發音字典 textarea、
+ * 九個純資料 control 定義,依顯示順序:
+ * 引擎下拉、Edge 語音欄位、語音下拉、語速 slider、音高 slider、自動下一篇 toggle、遞迴 toggle、發音字典 textarea、
  * 不朗讀的符號 text。
  * 語速的「回預設 / 試聽」以獨立 action 列在 settings.ts 插入(需存取 this)。
  * key 對應 TwTtsSettings 欄位,由 getControlValue / setControlValue 讀寫。
  */
 export function coreSettingDefs(voices: VoiceLike[]): SettingDefinitionControl[] {
 	return [
+		{
+			name: STRINGS.settingProvider,
+			desc: STRINGS.settingProviderDesc,
+			control: {
+				type: 'dropdown',
+				key: 'provider',
+				options: { edge: STRINGS.settingProviderEdge, local: STRINGS.settingProviderLocal },
+			},
+		},
+		{
+			name: STRINGS.settingEdgeVoice,
+			desc: STRINGS.settingEdgeVoiceDesc,
+			control: {
+				type: 'text',
+				key: 'edgeVoice',
+				placeholder: 'zh-CN-XiaoxiaoNeural',
+			},
+		},
 		{
 			name: STRINGS.settingVoiceName,
 			desc: voices.length === 0 ? STRINGS.settingNoVoices : STRINGS.settingVoiceDesc,

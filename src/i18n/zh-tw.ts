@@ -68,6 +68,12 @@ export const STRINGS = {
 	},
 
 	// 設定頁
+	settingProvider: '朗讀引擎',
+	settingProviderDesc: 'Edge 僅在桌面版使用本機 edge-tts CLI（文字會傳送至 Microsoft Edge 線上服務）；iPhone/iPad 一律使用系統語音。',
+	settingProviderEdge: 'Edge CLI（線上）',
+	settingProviderLocal: '系統語音（離線）',
+	settingEdgeVoice: 'Edge 語音',
+	settingEdgeVoiceDesc: '僅 Edge CLI 使用。預設 zh-CN-XiaoxiaoNeural；可填 zh-CN-YunyangNeural 等 edge-tts 支援的語音。',
 	settingVoiceName: '語音',
 	settingVoiceDesc: '選擇朗讀用的語音。中文依品質排序在前，其餘列出系統已安裝的多國語音。',
 	settingVoiceAuto: '自動(推薦最佳語音)',

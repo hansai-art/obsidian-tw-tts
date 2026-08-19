@@ -23,6 +23,11 @@ import {
 	type PronunciationRule,
 } from './pronunciation';
 import { playbackError, type ActionableError } from './playback-error';
+import {
+	createEdgeAudio,
+	EdgeCliSpeechClient,
+	EdgeTtsEngine,
+} from './edge-tts';
 
 export const VIEW_TYPE_TW_TTS = 'tw-read-aloud-view';
 
@@ -31,10 +36,21 @@ interface ResolvedVoice {
 	voice: SpeechSynthesisVoice;
 }
 
+interface PlaybackEngine {
+	start(sentences: string[], fromIndex?: number): void;
+	setRate(rate: number): void;
+	pause(): void;
+	resume(): void;
+	stop(): void;
+	next(): void;
+	prev(): void;
+	jumpTo(index: number): void;
+}
+
 /** 獨立閱讀窗格:逐句顯示 + 目前句反白 + 播放控制列 + 資料夾連播。 */
 export class TwTtsReaderView extends ItemView {
 	private plugin: TwTtsPlugin;
-	private engine: TtsEngine | null = null;
+	private engine: PlaybackEngine | null = null;
 	private titleEl!: HTMLElement;
 	private listEl!: HTMLElement;
 	private sentenceEls: HTMLElement[] = [];
@@ -165,8 +181,6 @@ export class TwTtsReaderView extends ItemView {
 
 	/** 朗讀一段句子(選取文字用;無檔案脈絡,不會自動下一篇)。 */
 	readSentences(sentences: string[], startIndex = 0): void {
-		const resolved = this.resolveVoice();
-		if (!resolved) return;
 		if (sentences.length === 0) {
 			new Notice(STRINGS.noContent);
 			return;
@@ -175,7 +189,12 @@ export class TwTtsReaderView extends ItemView {
 		this.queueIndex = 0;
 		this.currentFile = null;
 		this.updateTitle();
-		this.beginPlayback(sentences, startIndex, resolved);
+		if (this.shouldUseEdge()) {
+			this.beginEdgePlayback(sentences, startIndex);
+			return;
+		}
+		const resolved = this.resolveVoice();
+		if (resolved) this.beginPlayback(sentences, startIndex, resolved);
 	}
 
 	/** 朗讀單一檔案,可指定起始句(從游標處開始唸)。 */
@@ -216,12 +235,50 @@ export class TwTtsReaderView extends ItemView {
 			this.finishUI();
 			return;
 		}
+		if (this.shouldUseEdge()) {
+			this.beginEdgePlayback(sentences, startIndex);
+			return;
+		}
 		const resolved = this.resolveVoice();
-		if (!resolved) return;
-		this.beginPlayback(sentences, startIndex, resolved);
+		if (resolved) this.beginPlayback(sentences, startIndex, resolved);
 	}
 
 	// ── 引擎啟動 ────────────────────────────────────────────
+
+	private shouldUseEdge(): boolean {
+		// iOS / Android 沒有 Node child_process；設定 Edge 時行動版仍安全回落系統語音。
+		return this.plugin.settings.provider === 'edge' && Platform.isDesktopApp;
+	}
+
+	private beginEdgePlayback(sentences: string[], startIndex: number): void {
+		this.renderSentenceList(sentences);
+		this.rules = parseRules(this.plugin.settings.pronunciationRules);
+		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
+		const client = new EdgeCliSpeechClient();
+		this.engine = new EdgeTtsEngine(
+			client,
+			createEdgeAudio,
+			{
+				voice: this.plugin.settings.edgeVoice,
+				rate: this.plugin.settings.rate,
+				pitch: this.plugin.settings.pitch,
+			},
+			{
+				onSentenceStart: (i) => this.highlight(i),
+				onDone: () => this.onFinished(),
+				onError: (m) => {
+					new Notice(m);
+					this.onFinished();
+				},
+			},
+		);
+		// Edge 的音檔也應套用既有發音字典與靜音符號，再由引擎逐句生成與播放。
+		const spoken = sentences.map((text) =>
+			applyPronunciation(applyPronunciation(text, this.rules), this.silentRules),
+		);
+		this.engine.start(spoken, startIndex);
+		this.setPlayingUI(true, false);
+	}
 
 	private resolveVoice(): ResolvedVoice | null {
 		const synthApi = window.speechSynthesis;
