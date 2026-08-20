@@ -2,7 +2,7 @@
 
 > 中文為主 · English below
 
-給台灣使用者的 Obsidian 語音朗讀外掛:用**各平台系統內建的中文語音**把筆記唸出來,**逐句反白跟讀**。免費、離線、跨平台,介面全繁體中文。走瀏覽器內建 Web Speech API 與系統語音,**不依賴任何外部伺服器**。
+給台灣使用者的 Obsidian 語音朗讀外掛：預設用**各平台系統內建的中文語音**把筆記唸出來，免費、離線並支援**逐句反白跟讀**。桌面版另可選免 Key 的 Edge CLI 線上語音，或使用自己的 Azure Speech Key；只有主動選擇線上引擎時，朗讀文字才會送到 Microsoft。
 
 ---
 
@@ -22,7 +22,7 @@
 
 ### 安裝
 
-**A. 官方社群外掛(審核通過後)**
+**A. 官方社群外掛（推薦）**
 設定 → 社群外掛 → 瀏覽 → 搜「Hans TW TTS」→ 安裝 → 啟用。
 
 **B. BRAT(現在就能用,電腦與手機都可)**
@@ -71,9 +71,23 @@
 
 外掛預設仍使用**系統語音（離線）**、自動挑選最佳中文語音，音高預設為 `0`。如要使用 Edge CLI，可在設定把「朗讀引擎」切成 **Edge CLI**；它預設使用 `zh-CN-XiaoxiaoNeural`，不需要 Azure 帳號或 API Key。第一次使用前，請在電腦安裝 [`edge-tts`](https://github.com/rany2/edge-tts)，讓終端機可執行 `edge-tts`。
 
+- macOS 終端機：`python3 -m pip install --user edge-tts`
+- Windows PowerShell：`py -m pip install --user edge-tts`
+- 安裝後重新啟用外掛，再到設定頁按「執行環境檢查」。外掛不會自行執行 pip 或要求系統管理員權限。
+
 - Edge CLI 是透過 Microsoft Edge 線上服務合成，朗讀文字會傳送到該服務；可隨時切回**系統語音（離線）**。
 - 可在「Edge 語音」欄位選擇已知 voice，例如 `zh-CN-YunyangNeural`；再將音高設為 `-7`，即可使用 Yunyang 的低沉音高作為一組可選範例，並非預設值。
 - Edge CLI 僅支援桌面版 Obsidian；iPhone/iPad 會自動使用既有的系統語音。
+
+### 疑難排解與安全診斷
+
+設定 → Hans TW TTS →「疑難排解與環境檢查」：
+
+1. 按「執行環境檢查」，外掛會依目前引擎檢查系統語音 API，或實際執行 Edge／Azure 合成與播放。
+2. 查看顯示的 provider、voice、語速、音高、檢查階段與錯誤代碼。
+3. 仍無法解決時，按「複製安全診斷給 AI」，直接貼給你使用的 AI 協助排錯。
+
+安全診斷不包含筆記內容、Azure Key、Vault 名稱、完整私人路徑或 raw stderr。設定頁的「常見問題 Q&A」也提供 Edge CLI 安裝、錯誤語音、網路逾時與 Azure 設定的解法。
 
 ## Azure Speech API（自己的 Key）
 
@@ -125,7 +139,7 @@ MIT。原創程式碼,不衍生自任何 AGPL 專案。
 
 ## English
 
-An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using your device's **built-in Traditional Chinese system voice**, with **sentence-by-sentence highlight follow**. Free, offline, cross-platform. It uses the Web Speech API and each platform's system voices, so it does **not** depend on any external server.
+An Obsidian plugin (Traditional-Chinese first) that reads notes aloud with **sentence-by-sentence highlighting**. The default system-voice provider is free and offline. Desktop users may optionally choose the online Edge CLI provider, while Azure Speech uses the user's own Key; note text is sent to Microsoft only when an online provider is selected.
 
 ### Features
 
@@ -138,7 +152,7 @@ An Obsidian plugin (Traditional-Chinese first) that reads your notes aloud using
 
 ### Installation
 
-**A. Community Plugins (once approved):** Settings → Community plugins → Browse → search "Hans TW TTS" → Install → Enable.
+**A. Community Plugins (recommended):** Settings → Community plugins → Browse → search "Hans TW TTS" → Install → Enable.
 
 **B. BRAT (works now, desktop and mobile):** Install the BRAT plugin, then command palette → "BRAT: Add a beta plugin" → paste `hansai-art/obsidian-tw-tts` → enable "Hans TW TTS".
 

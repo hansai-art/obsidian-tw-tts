@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-tw-tts",
-	"version": "0.12.5",
-	"description": "Read your notes aloud in Chinese using built-in system voices, with sentence-by-sentence highlight follow. Works on macOS, Windows and iOS (not Android: its Obsidian WebView lacks the Web Speech API). UI in Traditional Chinese.",
+	"version": "0.13.0",
+	"description": "Traditional-Chinese-first Obsidian read-aloud plugin with system, Edge CLI or Azure voices and sentence-by-sentence highlighting.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

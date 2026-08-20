@@ -202,3 +202,47 @@
 	font-family: var(--font-monospace);
 	resize: vertical;
 }
+
+.tw-tts-support-status {
+	margin-top: 8px;
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.55;
+	white-space: pre-wrap;
+}
+
+.tw-tts-support-status.is-success {
+	border-color: var(--color-green);
+	color: var(--text-success);
+}
+
+.tw-tts-support-status.is-error {
+	border-color: var(--color-red);
+	color: var(--text-error);
+}
+
+.tw-tts-support-faq details {
+	padding: 7px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.tw-tts-support-faq details:last-child {
+	border-bottom: 0;
+}
+
+.tw-tts-support-faq summary {
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+	cursor: pointer;
+}
+
+.tw-tts-support-faq p {
+	margin: 7px 0 2px 1.25em;
+	color: var(--text-muted);
+	line-height: 1.6;
+}

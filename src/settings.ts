@@ -1,5 +1,6 @@
 import {
 	App,
+	apiVersion,
 	Notice,
 	Platform,
 	PluginSettingTab,
@@ -16,7 +17,7 @@ import { availableVoices, pickVoice, regionLabel } from './voice-catalog';
 import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
-import { createEdgeAudio, edgeFailureDetails, edgeFailureMessage, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
+import { createEdgeAudio, edgeFailureMessage, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
 import { ObsidianAzureSpeechClient } from './azure-obsidian';
 import { cloudVoiceOptions } from './cloud-voice-catalog';
 import {
@@ -26,6 +27,22 @@ import {
 	shouldUseEdgeProvider,
 	type TtsProvider,
 } from './provider-policy';
+import {
+	effectiveSupportProvider,
+	formatAiSupportPrompt,
+	formatSupportSummary,
+	safeAzureFailureMessage,
+	SUPPORT_FAQ,
+	supportErrorCode,
+	type SupportCheckStage,
+	type SupportDiagnostic,
+} from './support-diagnostics';
+
+interface SupportCheckOutcome {
+	passed: boolean;
+	stage: SupportCheckStage;
+	message: string;
+}
 
 export interface TwTtsSettings {
 	/** local = Web Speech；edge = 桌面 CLI；azure = 使用者自己的 Azure Speech API。 */
@@ -70,8 +87,12 @@ export const DEFAULT_SETTINGS: TwTtsSettings = {
 export class TwTtsSettingTab extends PluginSettingTab {
 	private plugin: TwTtsPlugin;
 	private edgePreviewAudio: EdgeAudio | null = null;
+	private supportDiagnostic: SupportDiagnostic | null = null;
+	private supportStatusEl: HTMLElement | null = null;
 	/** 切換聲音時淘汰舊的非同步合成，避免晚回來的舊音檔蓋過新選擇。 */
 	private previewGeneration = 0;
+	/** 快速重複檢查時只接受最後一次結果，避免舊請求覆蓋新狀態。 */
+	private supportCheckGeneration = 0;
 
 	constructor(app: App, plugin: TwTtsPlugin) {
 		super(app, plugin);
@@ -130,6 +151,15 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				void this.resetPitch();
 			},
 		};
+		const supportControls: SettingDefinitionRender = {
+			name: STRINGS.supportHeading,
+			desc: STRINGS.supportDesc,
+			render: (setting) => this.renderSupportControls(setting),
+		};
+		const supportFaq: SettingDefinitionRender = {
+			name: STRINGS.supportFaqHeading,
+			render: (setting) => this.renderSupportFaq(setting),
+		};
 
 		return [
 			previewControls,
@@ -151,6 +181,8 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			folderDef,
 			pronDef,
 			silentDef,
+			supportControls,
+			supportFaq,
 			...helpGroupDefs(),
 		];
 	}
@@ -386,7 +418,143 @@ export class TwTtsSettingTab extends PluginSettingTab {
 					});
 			});
 
+		const supportSetting = new Setting(containerEl)
+			.setName(STRINGS.supportHeading)
+			.setDesc(STRINGS.supportDesc);
+		this.renderSupportControls(supportSetting);
+		this.renderSupportFaq(new Setting(containerEl).setName(STRINGS.supportFaqHeading));
 		this.renderHelp(containerEl);
+	}
+
+	private platformLabel(): string {
+		if (Platform.isAndroidApp) return 'Android app';
+		if (Platform.isIosApp) return 'iOS app';
+		if (Platform.isDesktopApp) return 'Desktop';
+		return 'Unknown';
+	}
+
+	private currentVoiceId(provider = this.plugin.settings.provider): string {
+		if (provider === 'edge') return this.plugin.settings.edgeVoice;
+		if (provider === 'azure') return this.plugin.settings.azureVoice;
+		const synth = window.speechSynthesis;
+		return (synth ? pickVoice(synth.getVoices(), this.plugin.settings.voiceName)?.name : null)
+			?? this.plugin.settings.voiceName
+			?? '自動';
+	}
+
+	private makeSupportDiagnostic(
+		status: SupportDiagnostic['status'],
+		outcome?: SupportCheckOutcome,
+	): SupportDiagnostic {
+		const provider = this.plugin.settings.provider;
+		const effective = effectiveSupportProvider(provider, Platform.isDesktopApp);
+		return {
+			pluginVersion: this.plugin.manifest.version,
+			obsidianVersion: apiVersion,
+			platform: this.platformLabel(),
+			provider,
+			effectiveProvider: effective.effectiveProvider,
+			fallbackReason: effective.fallbackReason,
+			voice: this.currentVoiceId(effective.effectiveProvider),
+			rate: this.plugin.settings.rate,
+			pitch: this.plugin.settings.pitch,
+			status,
+			stage: outcome?.stage,
+			errorCode: status === 'failed' && outcome ? supportErrorCode(provider, outcome.message) : undefined,
+		};
+	}
+
+	private updateSupportDiagnostic(diagnostic: SupportDiagnostic): void {
+		this.supportDiagnostic = diagnostic;
+		if (!this.supportStatusEl) return;
+		this.supportStatusEl.setText(formatSupportSummary(diagnostic));
+		this.supportStatusEl.classList.toggle('is-success', diagnostic.status === 'passed');
+		this.supportStatusEl.classList.toggle('is-error', diagnostic.status === 'failed');
+	}
+
+	private isSupportDiagnosticCurrent(diagnostic: SupportDiagnostic): boolean {
+		const current = this.makeSupportDiagnostic('not-run');
+		return diagnostic.pluginVersion === current.pluginVersion
+			&& diagnostic.provider === current.provider
+			&& diagnostic.effectiveProvider === current.effectiveProvider
+			&& diagnostic.voice === current.voice
+			&& diagnostic.rate === current.rate
+			&& diagnostic.pitch === current.pitch;
+	}
+
+	private renderSupportControls(setting: Setting): void {
+		setting
+			.addButton((button) => button
+				.setButtonText(STRINGS.supportCheckButton)
+				.setIcon('stethoscope')
+				.onClick(() => void this.runEnvironmentCheck()))
+			.addButton((button) => button
+				.setButtonText(STRINGS.supportCopyButton)
+				.setIcon('copy')
+				.onClick(() => void this.copyAiDiagnostic()));
+		this.supportStatusEl = setting.descEl.createDiv({ cls: 'tw-tts-support-status' });
+		const diagnostic = this.supportDiagnostic && this.isSupportDiagnosticCurrent(this.supportDiagnostic)
+			? this.supportDiagnostic
+			: this.makeSupportDiagnostic('not-run');
+		this.updateSupportDiagnostic(diagnostic);
+	}
+
+	private renderSupportFaq(setting: Setting): void {
+		const list = setting.descEl.createDiv({ cls: 'tw-tts-support-faq' });
+		for (const item of SUPPORT_FAQ) {
+			const details = list.createEl('details');
+			details.createEl('summary', { text: item.question });
+			details.createEl('p', { text: item.answer });
+		}
+	}
+
+	private async runEnvironmentCheck(): Promise<void> {
+		const checkGeneration = ++this.supportCheckGeneration;
+		const effectiveProvider = effectiveSupportProvider(this.plugin.settings.provider, Platform.isDesktopApp).effectiveProvider;
+		this.updateSupportDiagnostic(this.makeSupportDiagnostic('checking', {
+			passed: false,
+			stage: effectiveProvider === 'edge' ? 'edge-cli' : effectiveProvider === 'azure' ? 'azure-api' : 'local-api',
+			message: STRINGS.supportChecking,
+		}));
+
+		let outcome: SupportCheckOutcome;
+		if (effectiveProvider === 'edge') {
+			outcome = await this.previewEdge(false);
+		} else if (effectiveProvider === 'azure') {
+			outcome = await this.previewAzure(false);
+		} else {
+			const synth = window.speechSynthesis;
+			const voice = synth ? pickVoice(synth.getVoices(), this.plugin.settings.voiceName) : null;
+			const error = playbackError({
+				hasSpeechApi: !!synth,
+				hasVoice: !!voice,
+				isAndroid: Platform.isAndroidApp,
+				isIos: Platform.isIosApp,
+				isDesktop: Platform.isDesktopApp,
+			});
+			if (error || !synth || !voice) {
+				outcome = { passed: false, stage: 'local-api', message: error?.title ?? STRINGS.previewNoVoice };
+			} else {
+				this.preview();
+				outcome = { passed: true, stage: 'local-api', message: '已偵測到系統語音 API 與指定語音，試聽已啟動。' };
+			}
+		}
+
+		if (checkGeneration !== this.supportCheckGeneration) return;
+		this.updateSupportDiagnostic(this.makeSupportDiagnostic(outcome.passed ? 'passed' : 'failed', outcome));
+		new Notice(outcome.passed ? STRINGS.supportCheckPassed : outcome.message, 8000);
+	}
+
+	private async copyAiDiagnostic(): Promise<void> {
+		const diagnostic = this.supportDiagnostic && this.isSupportDiagnosticCurrent(this.supportDiagnostic)
+			? this.supportDiagnostic
+			: this.makeSupportDiagnostic('not-run');
+		try {
+			await navigator.clipboard.writeText(formatAiSupportPrompt(diagnostic));
+			new Notice(STRINGS.supportCopySuccess);
+		} catch {
+			new Notice(STRINGS.supportCopyFailed, 8000);
+		}
 	}
 
 	/** 設定頁底部的內建教學(中文為主、英文為輔,每項配 Lucide 圖示)。 */
@@ -459,7 +627,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		synth.speak(u);
 	}
 
-	private async previewEdge(): Promise<void> {
+	private async previewEdge(showNotice = true): Promise<SupportCheckOutcome> {
 		this.stopPreview();
 		const generation = this.previewGeneration;
 		let blob: Blob;
@@ -474,32 +642,39 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				pitch: this.plugin.settings.pitch,
 			});
 		} catch (error) {
+			const safeMessage = edgeFailureMessage(error as { code?: string | number; killed?: boolean; message?: string });
 			if (generation === this.previewGeneration) {
-				const details = edgeFailureDetails(error as { code?: string | number; killed?: boolean; message?: string });
-				console.error('[Hans TW TTS] Edge preview synthesis failed', details);
-				window.localStorage.setItem('tw-read-aloud:last-edge-error', JSON.stringify(details));
-				new Notice(edgeFailureMessage(error as { code?: string | number; killed?: boolean; message?: string }), 8000);
+				const code = supportErrorCode('edge', safeMessage);
+				console.error('[Hans TW TTS] Edge preview synthesis failed', { code, stage: 'edge-cli' });
+				window.localStorage.setItem('tw-read-aloud:last-edge-error', JSON.stringify({ code, stage: 'edge-cli' }));
+				if (showNotice) new Notice(safeMessage, 8000);
 			}
-			return;
+			return { passed: false, stage: 'edge-cli', message: safeMessage };
 		}
-		if (generation !== this.previewGeneration) return;
+		if (generation !== this.previewGeneration) {
+			return { passed: false, stage: 'edge-cli', message: 'Edge 環境檢查已取消。' };
+		}
 		try {
 			const audio = createEdgeAudio(blob);
 			this.edgePreviewAudio = audio;
 			audio.onEnded = () => this.releaseEdgePreview(audio);
 			audio.onError = () => {
 				this.releaseEdgePreview(audio);
-				new Notice('Edge 語音試聽播放失敗。');
+				if (showNotice) new Notice('Edge 語音試聽播放失敗。');
 			};
 			await audio.play();
+			return { passed: true, stage: 'audio-playback', message: 'Edge CLI 合成成功，指定語音的音訊播放已啟動。' };
 		} catch {
+			if (this.edgePreviewAudio) this.releaseEdgePreview(this.edgePreviewAudio);
+			const message = 'Edge 語音已產生，但試聽音訊無法播放。請確認系統輸出裝置後重試。';
 			if (generation === this.previewGeneration) {
-				new Notice('Edge 語音已產生，但試聽音訊無法播放。請確認系統輸出裝置後重試。', 8000);
+				if (showNotice) new Notice(message, 8000);
 			}
+			return { passed: false, stage: 'audio-playback', message };
 		}
 	}
 
-	private async previewAzure(): Promise<void> {
+	private async previewAzure(showNotice = true): Promise<SupportCheckOutcome> {
 		this.stopPreview();
 		const generation = this.previewGeneration;
 		try {
@@ -509,19 +684,26 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				key: this.plugin.settings.azureKey,
 				region: this.plugin.settings.azureRegion,
 			}).synthesize(sample, { voice, rate: this.plugin.settings.rate, pitch: this.plugin.settings.pitch });
-			if (generation !== this.previewGeneration) return;
+			if (generation !== this.previewGeneration) {
+				return { passed: false, stage: 'azure-api', message: 'Azure 環境檢查已取消。' };
+			}
 			const audio = createEdgeAudio(blob);
 			this.edgePreviewAudio = audio;
 			audio.onEnded = () => this.releaseEdgePreview(audio);
 			audio.onError = () => {
 				this.releaseEdgePreview(audio);
-				new Notice('Azure 語音試聽播放失敗。');
+				if (showNotice) new Notice('Azure 語音試聽播放失敗。');
 			};
 			await audio.play();
+			return { passed: true, stage: 'audio-playback', message: 'Azure Speech 合成成功，指定語音的音訊播放已啟動。' };
 		} catch (error) {
-			if (generation !== this.previewGeneration) return;
-			const message = error instanceof Error ? error.message : '未知錯誤';
-			new Notice(`Azure 語音試聽失敗：${message}`, 10000);
+			if (this.edgePreviewAudio) this.releaseEdgePreview(this.edgePreviewAudio);
+			if (generation !== this.previewGeneration) {
+				return { passed: false, stage: 'azure-api', message: 'Azure 環境檢查已取消。' };
+			}
+			const message = safeAzureFailureMessage(error);
+			if (showNotice) new Notice(`Azure 語音試聽失敗：${message}`, 10000);
+			return { passed: false, stage: 'azure-api', message };
 		}
 	}
 
