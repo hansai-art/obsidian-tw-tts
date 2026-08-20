@@ -16,7 +16,7 @@ import { availableVoices, pickVoice, regionLabel } from './voice-catalog';
 import { coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
-import { createEdgeAudio, edgeFailureMessage, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
+import { createEdgeAudio, edgeFailureDetails, edgeFailureMessage, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
 import { ObsidianAzureSpeechClient } from './azure-obsidian';
 import { cloudVoiceOptions } from './cloud-voice-catalog';
 import {
@@ -475,6 +475,9 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			});
 		} catch (error) {
 			if (generation === this.previewGeneration) {
+				const details = edgeFailureDetails(error as { code?: string | number; killed?: boolean; message?: string });
+				console.error('[Hans TW TTS] Edge preview synthesis failed', details);
+				window.localStorage.setItem('tw-read-aloud:last-edge-error', JSON.stringify(details));
 				new Notice(edgeFailureMessage(error as { code?: string | number; killed?: boolean; message?: string }), 8000);
 			}
 			return;

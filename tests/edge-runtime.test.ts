@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { edgeFailureMessage, pickDesktopRequire } from '../src/edge-tts';
+import { edgeFailureDetails, edgeFailureMessage, pickDesktopRequire } from '../src/edge-tts';
 
 test('desktop require falls back to module scope when Obsidian omits window.require', () => {
 	const moduleRequire = (() => undefined) as (id: string) => unknown;
@@ -19,4 +19,14 @@ test('Edge failure text identifies missing command and timeout without exposing 
 	assert.match(edgeFailureMessage({ code: 1, edgeStderr: 'aiohttp.client_exceptions.ClientConnectorError' }), /連線失敗/);
 	assert.match(edgeFailureMessage({ code: 1, edgeStderr: 'ssl.SSLCertVerificationError: CERTIFICATE_VERIFY_FAILED' }), /憑證驗證失敗/);
 	assert.doesNotMatch(edgeFailureMessage({ message: 'secret note contents' }), /secret note contents/);
+});
+
+test('Edge backend diagnostics redact spoken text but retain process output', () => {
+	const details = edgeFailureDetails({
+		code: 1,
+		message: 'Command failed: edge-tts --text private note --write-media /tmp/a.mp3',
+		edgeStderr: 'real backend failure',
+	});
+	assert.doesNotMatch(String(details.message), /private note/);
+	assert.equal(details.stderr, 'real backend failure');
 });

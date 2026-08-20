@@ -10,6 +10,7 @@ import {
 
 test('Edge CLI settings use Yunyang and Hz pitch/rate values', () => {
 	assert.equal(edgePitch(-7), '-7Hz');
+	assert.equal(edgePitch(0), '+0Hz');
 	assert.equal(edgePitch(3), '+3Hz');
 	assert.equal(edgeRate(1), '+0%');
 	assert.equal(edgeRate(1.25), '+25%');

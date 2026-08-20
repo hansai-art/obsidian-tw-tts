@@ -78,7 +78,7 @@ export interface EdgeTtsCallbacks {
 /** edge-tts CLI 接受的音高值，例如 -7Hz。 */
 export function edgePitch(semitones: number): string {
 	const value = Math.round(semitones);
-	return `${value > 0 ? '+' : ''}${value}Hz`;
+	return `${value >= 0 ? '+' : ''}${value}Hz`;
 }
 
 /** 將既有的倍率語速轉為 edge-tts CLI 接受的百分比。 */
@@ -92,6 +92,20 @@ interface ProcessFailure {
 	killed?: boolean;
 	message?: string;
 	edgeStderr?: string;
+	edgeStdout?: string;
+	signal?: string;
+}
+
+export function edgeFailureDetails(error: ProcessFailure): Record<string, unknown> {
+	const safeMessage = error.message?.split('\n')[0].replace(/--text(?:=|\s).*/, '--text [REDACTED]');
+	return {
+		message: safeMessage,
+		code: error.code,
+		killed: error.killed,
+		signal: error.signal,
+		stderr: error.edgeStderr,
+		stdout: error.edgeStdout,
+	};
 }
 
 /** 使用者可採取行動的錯誤，不回顯筆記內容或完整系統路徑。 */
@@ -115,10 +129,11 @@ export function edgeFailureMessage(error: ProcessFailure): string {
 
 function runEdgeTts(command: string, args: string[], { execFile }: DesktopNodeModules): Promise<void> {
 	return new Promise((resolve, reject) => {
-		execFile(command, args, { timeout: 45_000, maxBuffer: 1_024 * 1_024 }, (error, _stdout, stderr) => {
+		execFile(command, args, { timeout: 45_000, maxBuffer: 1_024 * 1_024 }, (error, stdout, stderr) => {
 			if (!error) return resolve();
 			const failure = error as Error & ProcessFailure;
 			failure.edgeStderr = stderr.slice(0, 2_000);
+			failure.edgeStdout = stdout.slice(0, 2_000);
 			reject(failure);
 		});
 	});
