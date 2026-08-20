@@ -1,9 +1,9 @@
 {
 	"id": "tw-read-aloud",
 	"name": "Hans TW TTS",
-	"version": "0.13.0",
+	"version": "0.13.1",
 	"minAppVersion": "1.7.2",
-	"description": "繁中優先的 Obsidian 朗讀：系統語音（離線）、Edge CLI 或自有 Azure Key，支援逐句反白。Traditional-Chinese-first read aloud with system, Edge CLI or Azure voices.",
+	"description": "繁中優先的筆記朗讀：系統語音（離線）、Edge CLI 或自有 Azure Key，支援逐句反白。Traditional-Chinese-first read aloud with system, Edge CLI or Azure voices.",
 	"author": "Hans Lin",
 	"authorUrl": "https://github.com/hansai-art",
 	"isDesktopOnly": false

@@ -646,7 +646,6 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			if (generation === this.previewGeneration) {
 				const code = supportErrorCode('edge', safeMessage);
 				console.error('[Hans TW TTS] Edge preview synthesis failed', { code, stage: 'edge-cli' });
-				window.localStorage.setItem('tw-read-aloud:last-edge-error', JSON.stringify({ code, stage: 'edge-cli' }));
 				if (showNotice) new Notice(safeMessage, 8000);
 			}
 			return { passed: false, stage: 'edge-cli', message: safeMessage };
