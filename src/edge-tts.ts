@@ -4,7 +4,7 @@ type ExecFile = (
 	file: string,
 	args: string[],
 	options: { timeout: number; maxBuffer: number },
-	callback: (error: Error | null) => void,
+	callback: (error: Error | null, stdout: string, stderr: string) => void,
 ) => void;
 
 interface DesktopNodeModules {
@@ -91,21 +91,36 @@ interface ProcessFailure {
 	code?: string | number;
 	killed?: boolean;
 	message?: string;
+	edgeStderr?: string;
 }
 
 /** 使用者可採取行動的錯誤，不回顯筆記內容或完整系統路徑。 */
 export function edgeFailureMessage(error: ProcessFailure): string {
 	if (error.code === 'ENOENT') return '找不到 edge-tts。請重新安裝後停用再啟用外掛。';
 	if (error.killed || error.message?.toLowerCase().includes('timeout')) return 'Edge 語音合成逾時，請確認網路後重試。';
+	const stderr = error.edgeStderr?.toLowerCase() ?? '';
+	if (stderr.includes('certificate_verify_failed') || stderr.includes('ssl: certificate')) {
+		return 'Edge CLI 的 TLS 憑證驗證失敗。請更新 edge-tts 後重試。';
+	}
+	if (stderr.includes('clientconnector') || stderr.includes('connection') || stderr.includes('websocket')) {
+		return 'Edge 語音服務連線失敗。請檢查網路、VPN 或公司網路限制後重試。';
+	}
+	if (stderr.includes('invalid voice') || stderr.includes('no voice')) {
+		return '所選 Edge 語音目前不可用。請改選另一個語音後重試。';
+	}
+	if (stderr.includes('permission denied')) return 'Edge CLI 沒有暫存檔寫入權限。請重新安裝 edge-tts 後重試。';
 	const code = typeof error.code === 'string' || typeof error.code === 'number' ? `（代碼 ${error.code}）` : '';
-	return `Edge CLI 無法完成語音合成${code}。請確認網路正常後重試。`;
+	return `Edge CLI 已啟動但合成失敗${code}，且未收到可安全顯示的診斷輸出。`;
 }
 
 function runEdgeTts(command: string, args: string[], { execFile }: DesktopNodeModules): Promise<void> {
 	return new Promise((resolve, reject) => {
-		execFile(command, args, { timeout: 45_000, maxBuffer: 1_024 * 1_024 }, (error) =>
-			error ? reject(error instanceof Error ? error : new Error('edge-tts command failed')) : resolve(),
-		);
+		execFile(command, args, { timeout: 45_000, maxBuffer: 1_024 * 1_024 }, (error, _stdout, stderr) => {
+			if (!error) return resolve();
+			const failure = error as Error & ProcessFailure;
+			failure.edgeStderr = stderr.slice(0, 2_000);
+			reject(failure);
+		});
 	});
 }
 

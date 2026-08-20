@@ -16,5 +16,7 @@ test('window require remains preferred when both Electron bridges exist', () => 
 test('Edge failure text identifies missing command and timeout without exposing note text', () => {
 	assert.match(edgeFailureMessage({ code: 'ENOENT', message: 'spawn /private/path ENOENT' }), /找不到/);
 	assert.match(edgeFailureMessage({ killed: true, message: 'timeout' }), /逾時/);
+	assert.match(edgeFailureMessage({ code: 1, edgeStderr: 'aiohttp.client_exceptions.ClientConnectorError' }), /連線失敗/);
+	assert.match(edgeFailureMessage({ code: 1, edgeStderr: 'ssl.SSLCertVerificationError: CERTIFICATE_VERIFY_FAILED' }), /憑證驗證失敗/);
 	assert.doesNotMatch(edgeFailureMessage({ message: 'secret note contents' }), /secret note contents/);
 });
