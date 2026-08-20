@@ -52,7 +52,7 @@ export const SUPPORT_FAQ: readonly SupportFaqItem[] = [
 	},
 	{
 		question: '如何請 AI 協助排錯？',
-		answer: '先執行環境檢查，再按「複製安全診斷給 AI」。複製內容不含筆記、Azure Key、Vault 名稱與完整私人路徑。',
+		answer: '先執行環境檢查，再按「顯示安全診斷給 AI」。診斷內容不含筆記、Azure Key、Vault 名稱與完整私人路徑；請自行按 Cmd/Ctrl+C 複製。',
 	},
 ];
 

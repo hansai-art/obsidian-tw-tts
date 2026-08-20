@@ -489,9 +489,9 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				.setIcon('stethoscope')
 				.onClick(() => void this.runEnvironmentCheck()))
 			.addButton((button) => button
-				.setButtonText(STRINGS.supportCopyButton)
-				.setIcon('copy')
-				.onClick(() => void this.copyAiDiagnostic()));
+				.setButtonText(STRINGS.supportShowButton)
+				.setIcon('file-text')
+				.onClick(() => this.showAiDiagnostic(setting.descEl)));
 		this.supportStatusEl = setting.descEl.createDiv({ cls: 'tw-tts-support-status' });
 		const diagnostic = this.supportDiagnostic && this.isSupportDiagnosticCurrent(this.supportDiagnostic)
 			? this.supportDiagnostic
@@ -545,16 +545,22 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		new Notice(outcome.passed ? STRINGS.supportCheckPassed : outcome.message, 8000);
 	}
 
-	private async copyAiDiagnostic(): Promise<void> {
+	private showAiDiagnostic(containerEl: HTMLElement): void {
 		const diagnostic = this.supportDiagnostic && this.isSupportDiagnosticCurrent(this.supportDiagnostic)
 			? this.supportDiagnostic
 			: this.makeSupportDiagnostic('not-run');
-		try {
-			await navigator.clipboard.writeText(formatAiSupportPrompt(diagnostic));
-			new Notice(STRINGS.supportCopySuccess);
-		} catch {
-			new Notice(STRINGS.supportCopyFailed, 8000);
+		let reportEl = containerEl.querySelector<HTMLTextAreaElement>('.tw-tts-support-report');
+		if (!reportEl) {
+			containerEl.createDiv({ cls: 'tw-tts-support-report-hint', text: STRINGS.supportReportHint });
+			reportEl = containerEl.createEl('textarea', {
+				cls: 'tw-tts-support-report',
+				attr: { readonly: 'true', 'aria-label': STRINGS.supportReportLabel },
+			});
+			reportEl.rows = 12;
 		}
+		reportEl.value = formatAiSupportPrompt(diagnostic);
+		reportEl.focus();
+		reportEl.select();
 	}
 
 	/** 設定頁底部的內建教學(中文為主、英文為輔,每項配 Lucide 圖示)。 */

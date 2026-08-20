@@ -14,3 +14,7 @@ test('manifest description follows the community plugin directory wording rule',
 test('support diagnostics do not persist data through browser storage', () => {
 	assert.doesNotMatch(settingsSource, /\b(?:localStorage|sessionStorage)\b/);
 });
+
+test('support diagnostics do not access the system clipboard', () => {
+	assert.doesNotMatch(settingsSource, /\b(?:navigator\s*\.\s*)?clipboard\b/i);
+});

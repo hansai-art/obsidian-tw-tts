@@ -32,6 +32,6 @@ This file is the release gate for user-visible TTS changes. A version must not b
 - Real Edge CLI generates non-empty Chinese and English MP3 files.
 - Azure API contract test verifies its official endpoint, Key header, SSML escaping and that the Key is never inserted into SSML or logs. A real Azure synthesis test requires the user's own Key and is recorded separately without exposing it.
 - Desktop Obsidian manual smoke test: system Chinese preview, system English preview, stop, Edge preview, Edge stop, and one full note playback.
-- Support smoke test: local readiness, Edge synthesis plus audio start, Azure missing-credential failure, safe clipboard handoff, both declarative and legacy settings rendering, and no runtime errors.
+- Support smoke test: local readiness, Edge synthesis plus audio start, Azure missing-credential failure, selectable safe diagnostic handoff without programmatic clipboard access, both declarative and legacy settings rendering, and no runtime errors.
 - iPhone/iPad smoke test: system preview and reading; Edge selection remains safely on system voice.
 - GitHub Actions release succeeds, and all release assets return HTTP 200.

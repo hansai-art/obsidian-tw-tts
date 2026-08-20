@@ -115,13 +115,13 @@ export const STRINGS = {
 
 	// 支援中心
 	supportHeading: '疑難排解與環境檢查',
-	supportDesc: '先檢查目前引擎的實際合成與播放路徑；若仍失敗，可複製不含筆記與憑證的安全診斷交給 AI。',
+	supportDesc: '先檢查目前引擎的實際合成與播放路徑；若仍失敗，可顯示不含筆記與憑證的安全診斷交給 AI。',
 	supportCheckButton: '執行環境檢查',
-	supportCopyButton: '複製安全診斷給 AI',
+	supportShowButton: '顯示安全診斷給 AI',
 	supportChecking: '正在檢查目前的朗讀引擎…',
 	supportCheckPassed: '環境檢查通過',
-	supportCopySuccess: '安全診斷已複製，可直接貼給 AI。',
-	supportCopyFailed: '無法寫入剪貼簿，請確認 Obsidian 的剪貼簿權限。',
+	supportReportHint: '診斷內容已選取，請按 Cmd/Ctrl+C，再貼給 AI。',
+	supportReportLabel: '安全 AI 診斷內容',
 	supportFaqHeading: '常見問題 Q&A',
 
 	// 設定頁內建教學(中英文)

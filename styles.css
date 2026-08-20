@@ -226,6 +226,21 @@
 	color: var(--text-error);
 }
 
+.tw-tts-support-report-hint {
+	margin-top: 10px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.tw-tts-support-report {
+	width: 100%;
+	margin-top: 6px;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.5;
+	resize: vertical;
+}
+
 .tw-tts-support-faq details {
 	padding: 7px 0;
 	border-bottom: 1px solid var(--background-modifier-border);
