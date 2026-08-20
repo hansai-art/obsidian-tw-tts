@@ -1,6 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { edgeFailureDetails, edgeFailureMessage, pickDesktopRequire } from '../src/edge-tts';
+import { bindDesktopRequire, edgeFailureDetails, edgeFailureMessage, pickDesktopRequire } from '../src/edge-tts';
+
+test('CommonJS require is bound through a type-safe runtime guard', () => {
+	const commonJsModule = {
+		marker: 'module',
+		require(this: { marker: string }, id: string) {
+			return `${this.marker}:${id}`;
+		},
+	};
+	const boundRequire = bindDesktopRequire(commonJsModule);
+	assert.equal(boundRequire?.('path'), 'module:path');
+	assert.equal(bindDesktopRequire({ require: 'not a function' }), undefined);
+	assert.equal(bindDesktopRequire(undefined), undefined);
+});
 
 test('desktop require falls back to module scope when Obsidian omits window.require', () => {
 	const moduleRequire = (() => undefined) as (id: string) => unknown;

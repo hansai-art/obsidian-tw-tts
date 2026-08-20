@@ -20,6 +20,17 @@ interface DesktopNodeModules {
 
 type DesktopRequire = (id: string) => unknown;
 
+function hasDesktopRequire(value: unknown): value is { require: DesktopRequire } {
+	if (value === null || (typeof value !== 'object' && typeof value !== 'function')) return false;
+	return typeof (value as { require?: unknown }).require === 'function';
+}
+
+/** 將 CommonJS module.require 安全綁回 module，避免 Electron 版本差異與 unsafe any。 */
+export function bindDesktopRequire(value: unknown): DesktopRequire | undefined {
+	if (!hasDesktopRequire(value)) return undefined;
+	return (id: string): unknown => value.require.call(value, id);
+}
+
 /** Electron bridge 版本相容：Obsidian 1.13 可不提供 window.require。 */
 export function pickDesktopRequire(
 	windowRequire: DesktopRequire | undefined,
@@ -34,10 +45,7 @@ export function pickDesktopRequire(
  */
 function desktopNodeModules(): DesktopNodeModules {
 	// Obsidian/Electron 版本不同：有些掛在 window.require，有些只提供 CommonJS module.require。
-	const moduleRequire =
-		typeof module === 'object' && typeof module.require === 'function'
-			? (module.require.bind(module) as DesktopRequire)
-			: undefined;
+	const moduleRequire = typeof module === 'object' ? bindDesktopRequire(module) : undefined;
 	const nodeRequire = pickDesktopRequire(
 		(window as unknown as { require?: DesktopRequire }).require,
 		moduleRequire,
