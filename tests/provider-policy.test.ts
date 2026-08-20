@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
 	isSupportedSystemVoiceLanguage,
 	previewLanguage,
+	shouldUseAndroidSelectToSpeak,
 	shouldAutoPreviewOnSettingChange,
 	shouldUseEdgeProvider,
 } from '../src/provider-policy';
@@ -19,6 +20,11 @@ test('Edge provider is available only for a desktop Edge selection', () => {
 	assert.equal(shouldUseEdgeProvider('edge', true), true);
 	assert.equal(shouldUseEdgeProvider('edge', false), false);
 	assert.equal(shouldUseEdgeProvider('local', true), false);
+});
+
+test('Android always switches to the system Select to Speak handoff', () => {
+	assert.equal(shouldUseAndroidSelectToSpeak(true), true);
+	assert.equal(shouldUseAndroidSelectToSpeak(false), false);
 });
 
 test('preview language follows the selected voice language', () => {

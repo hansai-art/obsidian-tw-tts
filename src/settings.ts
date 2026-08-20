@@ -23,6 +23,7 @@ import { cloudVoiceOptions } from './cloud-voice-catalog';
 import {
 	previewLanguage,
 	shouldAutoPreviewOnSettingChange,
+	shouldUseAndroidSelectToSpeak,
 	shouldUseAzureProvider,
 	shouldUseEdgeProvider,
 	type TtsProvider,
@@ -105,6 +106,12 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	 * 純資料定義集中在 setting-defs.ts;語速的「回預設 / 試聽」需存取 this,故在此以 action 列插入。
 	 */
 	getSettingDefinitions(): SettingDefinitionItem[] {
+		if (shouldUseAndroidSelectToSpeak(Platform.isAndroidApp)) {
+			return [{
+				name: STRINGS.androidModeTitle,
+				desc: STRINGS.androidModeSteps.join('\n'),
+			}];
+		}
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];
 		const [providerDef, edgeVoiceDef, , azureRegionDef, azureVoiceDef, voiceDef, rateDef, pitchDef, autoNextDef, folderDef, pronDef, silentDef] =
@@ -225,6 +232,12 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	private renderLegacySettings(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		if (shouldUseAndroidSelectToSpeak(Platform.isAndroidApp)) {
+			new Setting(containerEl)
+				.setName(STRINGS.androidModeTitle)
+				.setDesc(STRINGS.androidModeSteps.join('\n'));
+			return;
+		}
 
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];

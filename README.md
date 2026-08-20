@@ -89,9 +89,13 @@
 
 安全診斷不包含筆記內容、Azure Key、Vault 名稱、完整私人路徑或 raw stderr。設定頁的「常見問題 Q&A」也提供 Edge CLI 安裝、錯誤語音、網路逾時與 Azure 設定的解法。
 
+### Android
+
+Android 版固定切換為系統「隨選朗讀」模式。外掛會顯示啟用與操作指引，不會嘗試啟動 Edge CLI、Azure 或 Web Speech 播放。系統模式可免費朗讀、調整速度及在背景播放，但不提供外掛逐句反白、資料夾連播或 Yunyang。基於 Android 權限限制，外掛不能自行開啟無障礙服務，仍需使用者先在系統設定中啟用。
+
 ## Azure Speech API（自己的 Key）
 
-選擇「**Azure Speech API（自己的 Key）**」後，設定頁會顯示三個欄位：`Azure Speech Key`、`Azure Region` 與精選語音。這是 Microsoft 官方 API，不依賴本機 Python CLI，桌機與行動版都能使用。
+選擇「**Azure Speech API（自己的 Key）**」後，設定頁會顯示三個欄位：`Azure Speech Key`、`Azure Region` 與精選語音。這是 Microsoft 官方 API，不依賴本機 Python CLI；目前供桌機與 iPhone／iPad 使用。Android 版依產品策略固定切換為系統「隨選朗讀」。
 
 - Key 只存於該 Vault 的外掛資料檔，**未加密**；絕不可貼到筆記、截圖、Issue 或 Git。
 - Key 與 Region 必須來自同一個 Azure Speech 資源，例如 `Eastasia`。

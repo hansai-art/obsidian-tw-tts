@@ -99,6 +99,11 @@ export class TwTtsReaderView extends ItemView {
 
 		this.titleEl = c.createDiv('tw-tts-title');
 		this.titleEl.addClass('tw-tts-hidden');
+		if (Platform.isAndroidApp) {
+			this.listEl = c.createDiv('tw-tts-sentences');
+			this.showError(STRINGS.errors.androidUnsupported, false);
+			return;
+		}
 
 		const bar = c.createDiv('tw-tts-controls');
 		this.makeBtn(bar, 'skip-back', STRINGS.prev, () => this.engine?.prev());
@@ -165,7 +170,7 @@ export class TwTtsReaderView extends ItemView {
 	 * 在窗格內顯示持久的「原因 + 解法」面板,取代秒消的提示。
 	 * 使用者可停留閱讀完整解法,而不是只看到「不能用」就消失。
 	 */
-	private showError(err: ActionableError): void {
+	private showError(err: ActionableError, notify = true): void {
 		this.listEl.empty();
 		this.sentenceEls = [];
 		this.currentEl = null;
@@ -176,7 +181,7 @@ export class TwTtsReaderView extends ItemView {
 		const list = panel.createEl('ul', { cls: 'tw-tts-error-body' });
 		for (const line of err.body) list.createEl('li', { text: line });
 		// 同時給一則較長的提示指路;完整解法在上方面板持久顯示。
-		new Notice(err.title, 8000);
+		if (notify) new Notice(err.title, 8000);
 	}
 
 	// ── 對外播放入口 ─────────────────────────────────────────

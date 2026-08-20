@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-tw-tts",
-	"version": "0.13.2",
+	"version": "0.13.3",
 	"description": "Traditional-Chinese-first Obsidian read-aloud plugin with system, Edge CLI or Azure voices and sentence-by-sentence highlighting.",
 	"main": "main.js",
 	"scripts": {

@@ -20,6 +20,11 @@ export function shouldUseAzureProvider(provider: TtsProvider): boolean {
 	return provider === 'azure';
 }
 
+/** Android 固定交由系統「隨選朗讀」；外掛無權代替使用者開啟無障礙服務。 */
+export function shouldUseAndroidSelectToSpeak(isAndroid: boolean): boolean {
+	return isAndroid;
+}
+
 /** 試聽稿必須符合選定聲音的語言；非英文保守使用中文稿。 */
 export function previewLanguage(language: string): 'zh' | 'en' {
 	return normaliseLanguage(language).startsWith('en') ? 'en' : 'zh';

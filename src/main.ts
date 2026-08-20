@@ -13,6 +13,7 @@ import {
 } from './sentence-splitter';
 import { formatTtsDiagnostics } from './tts-diagnostics';
 import { orderNotesByPath } from './note-order';
+import { shouldUseAndroidSelectToSpeak } from './provider-policy';
 import {
 	DEFAULT_SETTINGS,
 	TwTtsSettingTab,
@@ -157,12 +158,14 @@ export default class TwTtsPlugin extends Plugin {
 
 	/** 朗讀單一檔案,可指定起始句。 */
 	async readFile(file: TFile, startIndex = 0): Promise<void> {
+		if (this.handoffToAndroidSelectToSpeak()) return;
 		const view = await this.activateView();
 		await view.playFile(file, startIndex);
 	}
 
 	/** 連播一個資料夾內的筆記。 */
 	async readFolder(folder: TFolder): Promise<void> {
+		if (this.handoffToAndroidSelectToSpeak()) return;
 		const files = this.collectFolderNotes(folder);
 		if (files.length === 0) {
 			new Notice(STRINGS.noFolderNotes);
@@ -174,6 +177,7 @@ export default class TwTtsPlugin extends Plugin {
 
 	/** 朗讀選取文字。 */
 	async readSelection(selection: string): Promise<void> {
+		if (this.handoffToAndroidSelectToSpeak()) return;
 		const text = selection.trim();
 		if (!text) {
 			new Notice(STRINGS.noSelection);
@@ -182,6 +186,16 @@ export default class TwTtsPlugin extends Plugin {
 		const sentences = splitIntoSentences(text);
 		const view = await this.activateView();
 		view.readSentences(sentences);
+	}
+
+	/** Android 不啟動外掛引擎，只顯示系統隨選朗讀的操作指引。 */
+	private handoffToAndroidSelectToSpeak(): boolean {
+		if (!shouldUseAndroidSelectToSpeak(Platform.isAndroidApp)) return false;
+		new Notice([
+			STRINGS.androidModeTitle,
+			...STRINGS.androidModeSteps,
+		].join('\n'), 0);
+		return true;
 	}
 
 	/** 蒐集資料夾內的 .md(依設定決定是否含子資料夾),依路徑排序。 */
