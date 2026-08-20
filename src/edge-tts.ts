@@ -87,6 +87,16 @@ export function edgeRate(rate: number): string {
 	return `${value >= 0 ? '+' : ''}${value}%`;
 }
 
+export function edgeCliArgs(text: string, settings: EdgeVoiceSettings, output: string): string[] {
+	return [
+		'--voice', settings.voice,
+		`--pitch=${edgePitch(settings.pitch)}`,
+		`--rate=${edgeRate(settings.rate)}`,
+		'--text', text,
+		'--write-media', output,
+	];
+}
+
 interface ProcessFailure {
 	code?: string | number;
 	killed?: boolean;
@@ -122,6 +132,8 @@ export function edgeFailureMessage(error: ProcessFailure): string {
 	if (stderr.includes('invalid voice') || stderr.includes('no voice')) {
 		return '所選 Edge 語音目前不可用。請改選另一個語音後重試。';
 	}
+	const argumentError = error.edgeStderr?.match(/argument --(pitch|rate|voice|write-media): ([^\n]+)/i);
+	if (argumentError) return `Edge CLI 參數錯誤（代碼 ${error.code ?? '未知'}）：--${argumentError[1]} ${argumentError[2]}`;
 	if (stderr.includes('permission denied')) return 'Edge CLI 沒有暫存檔寫入權限。請重新安裝 edge-tts 後重試。';
 	const code = typeof error.code === 'string' || typeof error.code === 'number' ? `（代碼 ${error.code}）` : '';
 	return `Edge CLI 已啟動但合成失敗${code}，且未收到可安全顯示的診斷輸出。`;
@@ -177,18 +189,11 @@ export class EdgeCliSpeechClient implements EdgeSpeechClient {
 			`obsidian-tw-tts-${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`,
 		);
 		try {
-			await runEdgeTts(await resolveEdgeExecutable(modules), [
-				'--voice',
-				settings.voice,
-				'--pitch',
-				edgePitch(settings.pitch),
-				'--rate',
-				edgeRate(settings.rate),
-				'--text',
-				text,
-				'--write-media',
-				output,
-			], modules);
+			await runEdgeTts(
+				await resolveEdgeExecutable(modules),
+				edgeCliArgs(text, settings, output),
+				modules,
+			);
 			return new Blob([await modules.readFile(output)], { type: 'audio/mpeg' });
 		} finally {
 			await modules.rm(output, { force: true });

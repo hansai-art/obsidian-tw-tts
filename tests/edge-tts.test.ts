@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
 	EdgeTtsEngine,
+	edgeCliArgs,
 	edgePitch,
 	edgeRate,
 	type EdgeAudio,
@@ -14,6 +15,13 @@ test('Edge CLI settings use Yunyang and Hz pitch/rate values', () => {
 	assert.equal(edgePitch(3), '+3Hz');
 	assert.equal(edgeRate(1), '+0%');
 	assert.equal(edgeRate(1.25), '+25%');
+});
+
+test('Edge CLI binds negative pitch to its option so argparse does not treat it as a flag', () => {
+	const args = edgeCliArgs('測試', { voice: 'zh-CN-YunyangNeural', rate: 1, pitch: -7 }, '/tmp/out.mp3');
+	assert.ok(args.includes('--pitch=-7Hz'));
+	assert.ok(args.includes('--rate=+0%'));
+	assert.equal(args.includes('-7Hz'), false);
 });
 
 test('EdgeTtsEngine generates and plays one sentence at a time', async () => {

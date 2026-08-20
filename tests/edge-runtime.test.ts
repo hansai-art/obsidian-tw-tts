@@ -18,6 +18,7 @@ test('Edge failure text identifies missing command and timeout without exposing 
 	assert.match(edgeFailureMessage({ killed: true, message: 'timeout' }), /逾時/);
 	assert.match(edgeFailureMessage({ code: 1, edgeStderr: 'aiohttp.client_exceptions.ClientConnectorError' }), /連線失敗/);
 	assert.match(edgeFailureMessage({ code: 1, edgeStderr: 'ssl.SSLCertVerificationError: CERTIFICATE_VERIFY_FAILED' }), /憑證驗證失敗/);
+	assert.match(edgeFailureMessage({ code: 2, edgeStderr: 'edge-tts: error: argument --pitch: expected one argument' }), /--pitch expected one argument/);
 	assert.doesNotMatch(edgeFailureMessage({ message: 'secret note contents' }), /secret note contents/);
 });
 
