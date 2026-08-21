@@ -93,6 +93,10 @@
 
 Android 版固定切換為系統「隨選朗讀」模式。外掛會顯示啟用與操作指引，不會嘗試啟動 Edge CLI、Azure 或 Web Speech 播放。系統模式可免費朗讀、調整速度及在背景播放，但不提供外掛逐句反白、資料夾連播或 Yunyang。基於 Android 權限限制，外掛不能自行開啟無障礙服務，仍需使用者先在系統設定中啟用。
 
+### Callout 與 Highlightr
+
+桌機與 iPhone／iPad 的朗讀文字會略過 Obsidian Callout 的 `[!type]`／摺疊符號，以及 Highlightr 寫入的 `<mark>`／`<font>` 顯示標籤與色碼，只保留自訂標題及可見內文。這項相容性限於筆記原始 Markdown 中的 Callout 與上述標籤，不代表支援所有第三方外掛或所有 HTML。
+
 ## Azure Speech API（自己的 Key）
 
 選擇「**Azure Speech API（自己的 Key）**」後，設定頁會顯示三個欄位：`Azure Speech Key`、`Azure Region` 與精選語音。這是 Microsoft 官方 API，不依賴本機 Python CLI；目前供桌機與 iPhone／iPad 使用。Android 版依產品策略固定切換為系統「隨選朗讀」。

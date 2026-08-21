@@ -63,3 +63,27 @@ test('EdgeTtsEngine generates and plays one sentence at a time', async () => {
 	assert.deepEqual(generated, ['第一句', '第二句']);
 	assert.deepEqual(started, [0, 1]);
 });
+
+test('EdgeTtsEngine stops and reports once when synthesis rejects', async () => {
+	const generated: string[] = [];
+	const errors: string[] = [];
+	const client: EdgeSpeechClient = {
+		synthesize: async (text) => {
+			generated.push(text);
+			throw new Error('network failure');
+		},
+	};
+	const engine = new EdgeTtsEngine(
+		client,
+		() => { throw new Error('audio must not be created'); },
+		{ voice: 'zh-CN-YunyangNeural', rate: 1, pitch: -7 },
+		{ onError: (message) => errors.push(message) },
+	);
+
+	engine.start(['異常句', '不得繼續']);
+	await Promise.resolve();
+	await Promise.resolve();
+	assert.deepEqual(generated, ['異常句']);
+	assert.equal(errors.length, 1);
+	assert.equal(engine.isPlaying, false);
+});

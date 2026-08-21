@@ -66,10 +66,100 @@ function splitBlock(block: string): string[] {
 	return out;
 }
 
+const PRESENTATION_TAGS = new Set(['mark', 'font']);
+const INLINE_CODE_END = '\uE001';
+
+/** 暫存 inline code，避免技術筆記裡的 `<mark>` 被當成顯示標籤移除。 */
+function protectInlineCode(input: string): { text: string; spans: string[]; marker: string } {
+	const spans: string[] = [];
+	let marker = '\uE000TWTTSCODE';
+	while (input.includes(marker)) marker += 'X';
+	let text = '';
+	let index = 0;
+	while (index < input.length) {
+		if (input[index] !== '`') {
+			text += input[index++];
+			continue;
+		}
+		let runEnd = index;
+		while (input[runEnd] === '`') runEnd++;
+		const delimiter = input.slice(index, runEnd);
+		let closing = input.indexOf(delimiter, runEnd);
+		while (closing >= 0 && (input[closing - 1] === '`' || input[closing + delimiter.length] === '`')) {
+			closing = input.indexOf(delimiter, closing + 1);
+		}
+		if (closing < 0) {
+			text += delimiter;
+			index = runEnd;
+			continue;
+		}
+		const code = input.slice(runEnd, closing);
+		const spanIndex = spans.push(code) - 1;
+		text += `${marker}${spanIndex}${INLINE_CODE_END}`;
+		index = closing + delimiter.length;
+	}
+	return { text, spans, marker };
+}
+
+function restoreInlineCode(input: string, spans: string[], marker: string): string {
+	let output = input;
+	for (let index = 0; index < spans.length; index++) {
+		output = output.replace(`${marker}${index}${INLINE_CODE_END}`, spans[index]);
+	}
+	return output;
+}
+
+/**
+ * 只移除已確認的顯示型 HTML tags，保留 inner text 與其他技術內容。
+ * 逐字尋找 closing `>`，避免 attribute 引號內的 `>` 讓 regex 提早結束。
+ */
+function stripPresentationHtml(input: string): string {
+	let output = '';
+	let index = 0;
+	while (index < input.length) {
+		if (input[index] !== '<') {
+			output += input[index++];
+			continue;
+		}
+
+		let cursor = index + 1;
+		if (input[cursor] === '/') cursor++;
+		const nameStart = cursor;
+		while (cursor < input.length && /[A-Za-z]/.test(input[cursor])) cursor++;
+		const tagName = input.slice(nameStart, cursor).toLowerCase();
+		if (!PRESENTATION_TAGS.has(tagName) || !/[\s/>]/.test(input[cursor] ?? '')) {
+			output += input[index++];
+			continue;
+		}
+
+		let quote: '"' | "'" | null = null;
+		let end = cursor;
+		for (; end < input.length; end++) {
+			const ch = input[end];
+			if (quote) {
+				if (ch === quote) quote = null;
+				continue;
+			}
+			if (ch === '"' || ch === "'") {
+				quote = ch;
+				continue;
+			}
+			if (ch === '>') break;
+		}
+		if (end >= input.length) {
+			output += input.slice(index);
+			break;
+		}
+		index = end + 1;
+	}
+	return output;
+}
+
 /** 移除一行的 markdown 語法符號,回傳可讀純文字(可能為空字串)。 */
-function cleanLine(rawLine: string): string {
+function cleanLine(rawLine: string, prefixMode = false): string {
 	let s = rawLine.trim();
 	if (s === '') return '';
+	const isBlockquote = /^(>\s?)+/.test(s);
 
 	// 水平線 / 表格分隔列 → 丟棄
 	if (/^(-{3,}|\*{3,}|_{3,})$/.test(s)) return '';
@@ -77,6 +167,10 @@ function cleanLine(rawLine: string): string {
 
 	// 區塊級前綴
 	s = s.replace(/^(>\s?)+/, ''); // 引用
+	if (isBlockquote) {
+		if (prefixMode && /^\[![^\]\r\n]*$/.test(s)) return ''; // 游標尚在 Callout directive 內
+		s = s.replace(/^\[![^\]\r\n]+\][+-]?(?:\s+|$)/, ''); // Callout metadata
+	}
 	s = s.replace(/^#{1,6}\s+/, ''); // 標題
 	s = s.replace(/^[-*+]\s+\[[ xX]\]\s+/, ''); // 待辦核取方塊(需早於清單符號)
 	s = s.replace(/^[-*+]\s+/, ''); // 無序清單
@@ -87,7 +181,13 @@ function cleanLine(rawLine: string): string {
 		s = s.replace(/^\|/, '').replace(/\|$/, '').replace(/\|/g, ' ');
 	}
 
-	// 行內語法
+	// 行內語法；先保護 inline code，再移除 Highlightr 的顯示型 HTML。
+	if (prefixMode) {
+		// 游標可能落在 closing tag 中間；不可把截斷的 metadata 算成新句。
+		s = s.replace(/<\/(?:m(?:a(?:r(?:k)?)?)?|f(?:o(?:n(?:t)?)?)?)[^>]*$/i, '');
+	}
+	const protectedCode = protectInlineCode(s);
+	s = stripPresentationHtml(protectedCode.text);
 	s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, ''); // 圖片(先於連結)
 	s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1'); // 連結 → 文字
 	s = s.replace(/\[\[([^\]]+)\]\]/g, (_m, inner: string) => {
@@ -97,6 +197,7 @@ function cleanLine(rawLine: string): string {
 	});
 	s = s.replace(/(\*\*|__|~~|==)/g, ''); // 成對強調符號
 	s = s.replace(/[*_`]/g, ''); // 殘留單一強調 / 行內碼
+	s = restoreInlineCode(s, protectedCode.spans, protectedCode.marker);
 
 	return s.replace(/\s+/g, ' ').trim();
 }
@@ -105,7 +206,7 @@ function cleanLine(rawLine: string): string {
  * markdown 純文字 → 句子陣列。
  * @param markdown 筆記內容(可含 frontmatter、程式碼區塊、markdown 語法)
  */
-export function splitIntoSentences(markdown: string): string[] {
+function splitIntoSentencesInternal(markdown: string, prefixMode: boolean): string[] {
 	if (!markdown) return [];
 
 	let text = markdown;
@@ -117,10 +218,14 @@ export function splitIntoSentences(markdown: string): string[] {
 
 	const sentences: string[] = [];
 	for (const rawLine of text.split('\n')) {
-		const cleaned = cleanLine(rawLine);
+		const cleaned = cleanLine(rawLine, prefixMode);
 		if (cleaned) sentences.push(...splitBlock(cleaned));
 	}
 	return sentences;
+}
+
+export function splitIntoSentences(markdown: string): string[] {
+	return splitIntoSentencesInternal(markdown, false);
 }
 
 /**
@@ -129,5 +234,5 @@ export function splitIntoSentences(markdown: string): string[] {
  * 因此以「游標前的句數」推算游標所在句 = max(0, 句數 - 1)。
  */
 export function sentenceIndexForPrefix(prefix: string): number {
-	return Math.max(0, splitIntoSentences(prefix).length - 1);
+	return Math.max(0, splitIntoSentencesInternal(prefix, true).length - 1);
 }

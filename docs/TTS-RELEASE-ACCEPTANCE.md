@@ -30,6 +30,9 @@ This file is the release gate for user-visible TTS changes. A version must not b
 
 - `npm test`, `npm run lint`, `npm run build`, and `git diff --check` pass with no warnings or errors.
 - Real Edge CLI generates non-empty Chinese and English MP3 files.
+- Callout/Highlightr fixture reaches Edge as consecutive clean sentences: no `[!type]`, fold marker, `mark`/`font` tag, attribute or color code; custom title and visible text remain, and playback reaches the prose after the Callout.
+- Literal HTML in inline code, escaped HTML, comparisons and unrelated tags remain intact; malformed presentation tags do not swallow trailing text.
+- Cursor start index and follow-along highlighting stay aligned after Callout headers are removed.
 - Azure API contract test verifies its official endpoint, Key header, SSML escaping and that the Key is never inserted into SSML or logs. A real Azure synthesis test requires the user's own Key and is recorded separately without exposing it.
 - Desktop Obsidian manual smoke test: system Chinese preview, system English preview, stop, Edge preview, Edge stop, and one full note playback.
 - Support smoke test: local readiness, Edge synthesis plus audio start, Azure missing-credential failure, selectable safe diagnostic handoff without programmatic clipboard access, both declarative and legacy settings rendering, and no runtime errors.
