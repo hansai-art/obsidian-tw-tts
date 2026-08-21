@@ -46,7 +46,11 @@ function splitBlock(block: string): string[] {
 	while (i < n) {
 		const ch = block[i];
 		cur += ch;
-		if (isTerminator(ch, block[i + 1])) {
+		// 普通文字或 inline code 可能拿 `[!note]` 說明 Callout 語法；
+		// 其中的 `!` 是 type marker，不是句末。真正的 Callout directive 已在 cleanLine 移除。
+		const isCalloutTypeMarker =
+			ch === '!' && block[i - 1] === '[' && block.indexOf(']', i + 1) > i + 1;
+		if (!isCalloutTypeMarker && isTerminator(ch, block[i + 1])) {
 			let j = i + 1;
 			// 吸附後面連續的標點與收尾括號(例:?! 或 。」)
 			while (j < n && isTrailing(block[j])) {

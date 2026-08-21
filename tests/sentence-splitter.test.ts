@@ -114,8 +114,15 @@ test('strips default, folded, custom and nested callout directives', () => {
 	);
 });
 
-test('keeps a non-blockquote callout example as literal text', () => {
-	assert.equal(splitIntoSentences('[!note] 是語法示例。').join(''), '[!note] 是語法示例。');
+test('keeps non-blockquote callout examples intact within one sentence', () => {
+	assert.deepEqual(
+		splitIntoSentences('[!note] 是語法示例。'),
+		['[!note] 是語法示例。'],
+	);
+	assert.deepEqual(
+		splitIntoSentences('自動略過 `[!note]`、摺疊符號等格式，只朗讀自訂標題與內文。'),
+		['自動略過 [!note]、摺疊符號等格式，只朗讀自訂標題與內文。'],
+	);
 });
 
 test('keeps Highlightr text and removes mark syntax', () => {
