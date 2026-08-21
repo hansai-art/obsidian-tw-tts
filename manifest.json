@@ -1,7 +1,7 @@
 {
 	"id": "tw-read-aloud",
 	"name": "Hans TW TTS",
-	"version": "0.13.5",
+	"version": "0.13.6",
 	"minAppVersion": "1.7.2",
 	"description": "繁中優先的筆記朗讀：系統語音（離線）、Edge CLI 或自有 Azure Key，支援逐句反白。Traditional-Chinese-first read aloud with system, Edge CLI or Azure voices.",
 	"author": "Hans Lin",

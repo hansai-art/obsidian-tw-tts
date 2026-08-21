@@ -46,11 +46,7 @@ function splitBlock(block: string): string[] {
 	while (i < n) {
 		const ch = block[i];
 		cur += ch;
-		// 普通文字或 inline code 可能拿 `[!note]` 說明 Callout 語法；
-		// 其中的 `!` 是 type marker，不是句末。真正的 Callout directive 已在 cleanLine 移除。
-		const isCalloutTypeMarker =
-			ch === '!' && block[i - 1] === '[' && block.indexOf(']', i + 1) > i + 1;
-		if (!isCalloutTypeMarker && isTerminator(ch, block[i + 1])) {
+		if (isTerminator(ch, block[i + 1])) {
 			let j = i + 1;
 			// 吸附後面連續的標點與收尾括號(例:?! 或 。」)
 			while (j < n && isTrailing(block[j])) {
@@ -202,6 +198,10 @@ function cleanLine(rawLine: string, prefixMode = false): string {
 	s = s.replace(/(\*\*|__|~~|==)/g, ''); // 成對強調符號
 	s = s.replace(/[*_`]/g, ''); // 殘留單一強調 / 行內碼
 	s = restoreInlineCode(s, protectedCode.spans, protectedCode.marker);
+	// Callout type 一律視為不朗讀的 metadata；即使出現在正文或 inline code 範例也移除。
+	// 緊鄰中文標點時一併清掉 token 前的空白，避免產生「略過 、」的閱讀文字。
+	s = s.replace(/\s*\[![^\]\r\n]+\][+-]?(?=[，。！？；、：])/g, '');
+	s = s.replace(/\[![^\]\r\n]+\][+-]?/g, '');
 
 	return s.replace(/\s+/g, ' ').trim();
 }

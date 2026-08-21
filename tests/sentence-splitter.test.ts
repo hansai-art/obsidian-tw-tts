@@ -114,14 +114,14 @@ test('strips default, folded, custom and nested callout directives', () => {
 	);
 });
 
-test('keeps non-blockquote callout examples intact within one sentence', () => {
+test('silences non-blockquote callout examples instead of speaking their type', () => {
 	assert.deepEqual(
 		splitIntoSentences('[!note] 是語法示例。'),
-		['[!note] 是語法示例。'],
+		['是語法示例。'],
 	);
 	assert.deepEqual(
 		splitIntoSentences('自動略過 `[!note]`、摺疊符號等格式，只朗讀自訂標題與內文。'),
-		['自動略過 [!note]、摺疊符號等格式，只朗讀自訂標題與內文。'],
+		['自動略過、摺疊符號等格式，只朗讀自訂標題與內文。'],
 	);
 });
 
