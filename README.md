@@ -2,7 +2,7 @@
 
 > 中文為主 · English below
 
-給台灣使用者的 Obsidian 語音朗讀外掛：預設用**各平台系統內建的中文語音**把筆記唸出來，免費、離線並支援**逐句反白跟讀**。桌面版另可選免 Key 的 Edge CLI 線上語音，或使用自己的 Azure Speech Key；只有主動選擇線上引擎時，朗讀文字才會送到 Microsoft。
+給繁中使用者的筆記跟讀與連播外掛：預設用**各平台系統內建的中文語音**免費、離線朗讀；桌面可切換免 Key 的 Edge CLI，或使用自己的 Azure Speech Key。支援逐句反白、游標起讀、資料夾連播、發音字典、不朗讀符號，以及 Callout／Highlightr 格式清理。只有主動選擇線上引擎時，朗讀文字才會送到 Microsoft。
 
 ---
 
@@ -12,7 +12,7 @@
 
 - 一鍵朗讀目前筆記,或只朗讀選取的文字,或**從游標處開始唸**
 - **資料夾連播**:右鍵資料夾一次唸完整個資料夾,可設定讀完自動下一篇
-- **發音字典**:自訂破音字 / 專有名詞唸法(iPAS、臺、GPT…),全 Obsidian TTS 外掛獨家
+- **發音字典**:自訂破音字 / 專有名詞唸法(iPAS、臺、GPT…);在目前查核的主流同類外掛中少見
 - **不朗讀的符號**:拿來當列點的符號(○ ● ※…)可以設成不唸,不會再被唸成「零」
 - 獨立**朗讀窗格**逐句顯示筆記;唸到哪句那句就反白 + 自動捲到可視範圍
 - 播放 / 暫停 / 繼續 / 停止 / 上一句 / 下一句;播放當下可調語速
@@ -113,9 +113,9 @@ Android 版固定切換為系統「隨選朗讀」模式。外掛會顯示啟用
 | macOS | ✅ | 用系統內建中文語音 |
 | Windows | ✅ | 需在系統安裝中文語音 |
 | iPhone / iPad | ✅ | 用 iOS 內建中文語音 |
-| Android | ❌ 外掛內不支援(改用系統朗讀) | Obsidian 的 Android WebView 未開放語音介面([Chromium 長年未修的 bug](https://issues.chromium.org/issues/40417848)),所有外掛皆無法直接朗讀。改用系統「選取即朗讀」即可用台灣語音、免費、離線,見下方步驟 |
+| Android | 系統朗讀引導 | 外掛會引導啟用 Android「選取即朗讀」;不提供外掛逐句反白、資料夾連播或 Yunyang |
 
-**Android 為什麼不能在外掛內朗讀:** 這不是本外掛的問題,而是 Obsidian 的 Android WebView 沒有把系統語音接進 Web Speech API(Chromium 開了十多年沒修的 bug,連 `speechSynthesis` 介面都不給)。所有 TTS 外掛在 Android 都一樣,純外掛無法碰到系統原生語音。
+**Android 為什麼改用系統朗讀:** Obsidian 的 Android WebView 沒有穩定提供本外掛採用的 Web Speech 路徑,桌面 Edge CLI 也無法在 Android 執行。因此 Hans TW TTS 會交由 Android 系統「選取即朗讀」處理。其他外掛若使用雲端服務或額外原生 App,可能採用不同路徑。
 
 **Android 建議做法(系統「選取即朗讀」,台灣語音、免費、離線):**
 
@@ -147,15 +147,20 @@ MIT。原創程式碼,不衍生自任何 AGPL 專案。
 
 ## English
 
-An Obsidian plugin (Traditional-Chinese first) that reads notes aloud with **sentence-by-sentence highlighting**. The default system-voice provider is free and offline. Desktop users may optionally choose the online Edge CLI provider, while Azure Speech uses the user's own Key; note text is sent to Microsoft only when an online provider is selected.
+A Traditional-Chinese-first read-aloud and folder-playback plugin. The default system voice is free and offline; desktop users can switch to the no-key Edge CLI, or use their own Azure Speech Key. It also supports sentence highlighting, cursor start, pronunciation rules, silent symbols, and Callout/Highlightr cleanup. Note text is sent to Microsoft only when an online provider is selected.
 
 ### Features
 
-- Read the current note aloud, or read only the selected text
+- Read the current note, selected text, or start from the cursor
+- Play every note in a folder back to back, with optional subfolder recursion and automatic next-note playback
 - A dedicated **reader pane** shows the note sentence by sentence; the sentence being read is highlighted and auto-scrolled into view
 - Play / Pause / Resume / Stop / Previous / Next sentence
 - Click any sentence in the pane to start reading from there
-- Settings: choose any installed system voice (the best Chinese voice remains the automatic default), adjust speed and pitch
+- Use an offline system voice, desktop Edge CLI without an API key, or your own Azure Speech Key
+- Chinese-first voice filtering and quality ordering, with speed and pitch controls
+- Custom pronunciation rules and silent-symbol filtering across all three providers
+- Callout and Highlightr markup cleanup
+- Privacy-safe environment diagnostics that exclude note text, credentials, vault names, and full private paths
 - Traditional Chinese interface
 
 ### Installation
@@ -170,11 +175,11 @@ An Obsidian plugin (Traditional-Chinese first) that reads notes aloud with **sen
 
 Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection, or "從游標處開始唸" to start from the sentence at your cursor. Right-click a folder → "朗讀此資料夾" to play every note in it back-to-back. The reader pane opens on the right, highlights each sentence as it is read (with the note title + position when playing a folder), and click any sentence to start from there. "停止朗讀" stops playback.
 
-Settings let you pick any installed system voice (quality-ranked Chinese voices come first, while the best Chinese voice remains the automatic default), adjust/reset/preview speed and adjust pitch in semitones (-10 to +10; -7 gives a lower voice), toggle auto-advance to the next note in a folder, choose whether folder playback recurses into subfolders, define a **pronunciation dictionary** (one `原文=唸法` rule per line) to fix how proper nouns and heteronyms are read — no other Obsidian TTS plugin has this — and list **silent symbols** (space-separated, e.g. `○ ● ◎ ※`) that are stripped before speaking, so bullet glyphs are not read aloud (`○` would otherwise be voiced as "zero"); a line consisting only of such symbols is skipped. The reader pane also has a live speed control (− [1.0x] +).
+Settings let you choose from Chinese and English system voices (quality-ranked Chinese voices come first), adjust/reset/preview speed and pitch, toggle auto-advance to the next note, choose whether folder playback recurses into subfolders, define a **pronunciation dictionary** (one `原文=唸法` rule per line), and list **silent symbols** (for example `○ ● ◎ ※`) that are removed before speaking. The same pronunciation and symbol rules apply to system, Edge, and Azure providers. The reader pane also has a live speed control (− [1.0x] +).
 
 ### Platform support
 
-macOS ✅ · Windows ✅ · iPhone/iPad ✅ · Android ❌ not supported. Obsidian's Android WebView does not expose the Web Speech API (a [known Chromium bug](https://bugs.chromium.org/p/chromium/issues/detail?id=487255) that blocks every offline TTS plugin). Use desktop/iOS, or Android's system **Select to Speak** (Settings → Accessibility) to read notes on Android.
+macOS ✅ · Windows ✅ · iPhone/iPad ✅. On Android, the plugin provides setup guidance for the system **Select to Speak** accessibility service instead of using the plugin reader. This Android handoff does not include sentence highlighting, folder playback, or Edge voices.
 
 ### License
 
