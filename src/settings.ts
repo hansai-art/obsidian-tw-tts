@@ -14,7 +14,7 @@ import {
 import type TwTtsPlugin from './main';
 import { STRINGS } from './i18n/zh-tw';
 import { availableVoices, pickVoice, regionLabel } from './voice-catalog';
-import { coreSettingDefs, helpGroupDefs } from './setting-defs';
+import { contentReadingGroupDef, coreSettingDefs, helpGroupDefs } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
 import { createEdgeAudio, edgeFailureMessage, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
@@ -68,6 +68,9 @@ export interface TwTtsSettings {
 	pronunciationRules: string;
 	/** 不朗讀的符號,以空白分隔(如「○ ● ※」)。這些符號會在送去朗讀前被刪掉。 */
 	silentSymbols: string;
+	readStandaloneTags: boolean;
+	readBareUrls: boolean;
+	readMath: boolean;
 }
 
 export const DEFAULT_SETTINGS: TwTtsSettings = {
@@ -83,6 +86,9 @@ export const DEFAULT_SETTINGS: TwTtsSettings = {
 	folderQueueRecursive: false,
 	pronunciationRules: '',
 	silentSymbols: '',
+	readStandaloneTags: false,
+	readBareUrls: false,
+	readMath: false,
 };
 
 export class TwTtsSettingTab extends PluginSettingTab {
@@ -188,6 +194,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			folderDef,
 			pronDef,
 			silentDef,
+			contentReadingGroupDef(),
 			supportControls,
 			supportFaq,
 			...helpGroupDefs(),
@@ -430,6 +437,35 @@ export class TwTtsSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+		new Setting(containerEl).setName(STRINGS.contentReadingHeading).setHeading();
+		new Setting(containerEl)
+			.setName(STRINGS.settingReadStandaloneTags)
+			.setDesc(STRINGS.settingReadStandaloneTagsDesc)
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.readStandaloneTags)
+				.onChange(async (value) => {
+					this.plugin.settings.readStandaloneTags = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName(STRINGS.settingReadBareUrls)
+			.setDesc(STRINGS.settingReadBareUrlsDesc)
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.readBareUrls)
+				.onChange(async (value) => {
+					this.plugin.settings.readBareUrls = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName(STRINGS.settingReadMath)
+			.setDesc(STRINGS.settingReadMathDesc)
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.readMath)
+				.onChange(async (value) => {
+					this.plugin.settings.readMath = value;
+					await this.plugin.saveSettings();
+				}));
 
 		const supportSetting = new Setting(containerEl)
 			.setName(STRINGS.supportHeading)

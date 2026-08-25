@@ -20,6 +20,7 @@ import {
 	type TwTtsSettings,
 } from './settings';
 import { TwTtsReaderView, VIEW_TYPE_TW_TTS } from './reader-view';
+import type { MarkdownReaderOptions } from './markdown-reader';
 
 export default class TwTtsPlugin extends Plugin {
 	settings!: TwTtsSettings;
@@ -67,7 +68,7 @@ export default class TwTtsPlugin extends Plugin {
 					return;
 				}
 				const prefix = editor.getRange({ line: 0, ch: 0 }, editor.getCursor());
-				void this.readFile(file, sentenceIndexForPrefix(prefix));
+				void this.readFile(file, sentenceIndexForPrefix(prefix, this.getMarkdownReaderOptions()));
 			},
 		});
 		this.addCommand({
@@ -183,7 +184,7 @@ export default class TwTtsPlugin extends Plugin {
 			new Notice(STRINGS.noSelection);
 			return;
 		}
-		const sentences = splitIntoSentences(text);
+		const sentences = splitIntoSentences(text, this.getMarkdownReaderOptions());
 		const view = await this.activateView();
 		view.readSentences(sentences);
 	}
@@ -256,5 +257,13 @@ export default class TwTtsPlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+	}
+
+	getMarkdownReaderOptions(): MarkdownReaderOptions {
+		return {
+			readStandaloneTags: this.settings.readStandaloneTags,
+			readBareUrls: this.settings.readBareUrls,
+			readMath: this.settings.readMath,
+		};
 	}
 }

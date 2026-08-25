@@ -192,6 +192,79 @@ test('sentenceIndexForPrefix stays aligned across callout headers and highlighte
 		sentenceIndexForPrefix('前文。\n> [!note]\n> <mark style="background:red">重點</mark>。\n後'),
 		2,
 	);
-	assert.equal(sentenceIndexForPrefix('前文。\n> [!no'), 0);
+	assert.equal(sentenceIndexForPrefix('前文。\n> [!no'), 1);
 	assert.equal(sentenceIndexForPrefix('前文。\n> [!note]\n> <mark>第一句。</ma'), 1);
+});
+
+test('sentenceIndexForPrefix stays aligned after v0.14 metadata filters', () => {
+	assert.equal(sentenceIndexForPrefix('第一句。\n第二句。 ^473'), 2);
+	assert.equal(sentenceIndexForPrefix('第一句。\n%% 尚未完成'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。\n第二句[^1]'), 2);
+	assert.equal(sentenceIndexForPrefix('第一句。\n![[Embed]]'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。\n![[Embed]]\n'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。\n![[Embed]]\n第三'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。\nhttps://example.com'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。\n$E=mc^2$'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。\n$E=mc^2$', { readMath: true }), 1);
+});
+
+test('sentenceIndexForPrefix does not replay a sentence before same-line skipped metadata', () => {
+	for (const prefix of [
+		'第一句。 第二句。 ^473',
+		'第一句。 第二句。 %% hidden %%',
+		'第一句。 第二句。 <!-- hidden -->',
+		'第一句。 第二句[^note]',
+		'第一句。 第二句。 ![[Embed]]',
+		'第一句。 第二句。 https://example.com',
+		'第一句。 第二句。 $E=mc^2$',
+		'第一句。 第二句。 [!note]',
+	]) {
+		assert.equal(sentenceIndexForPrefix(prefix), 2, prefix);
+	}
+	assert.equal(sentenceIndexForPrefix('第一句。 公式 $E=mc^2$', { readMath: true }), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。 網址 https://example.com', { readBareUrls: true }), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。 %% hidden %% 後文'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。 <!-- hidden --> 後文'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。 ![[尚未完成'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。 [^尚未完成'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。 公式 $尚未完成'), 1);
+	assert.equal(sentenceIndexForPrefix('第一句。 價格 $100'), 1);
+});
+
+test('sentenceIndexForPrefix points after skipped block metadata instead of replaying the prior sentence', () => {
+	for (const prefix of [
+		'第一句。\n<!-- 尚未完成',
+		'第一句。\n```ts\nconst hidden = true;',
+		'第一句。\n$$\nx = 1',
+		'第一句。\n[^1]: 隱藏來源',
+		'第一句。\n    註腳續行',
+		'第一句。\n',
+	]) {
+		assert.equal(sentenceIndexForPrefix(prefix), 1, prefix);
+	}
+});
+
+test('sentenceIndexForPrefix suppresses unfinished frontmatter metadata', () => {
+	assert.equal(sentenceIndexForPrefix('---'), 0);
+	assert.equal(sentenceIndexForPrefix('---\ntitle: 尚未完成'), 0);
+	assert.deepEqual(splitIntoSentences('---\ntitle: 尚未完成'), ['title: 尚未完成']);
+});
+
+test('v0.14 smoke fixture produces the specified default reader sentences', () => {
+	const fixture = [
+		'---', 'tags: [test]', '---', '# 測試', '這是一段正文。 ^473eef',
+		'%% 這不應該朗讀 %%', '> [!note] 提醒', '> 這是 Callout。',
+		'這是 [[AI|人工智慧]]。', '![[Other Note#^abcdef]]',
+		'來源：https://example.com/test?id=1', '公式 $E=mc^2$ 很有名。',
+		'正文有註腳[^1]。', '[^1]: 不應該朗讀。', '#AI #研究',
+	].join('\n');
+	assert.deepEqual(splitIntoSentences(fixture), [
+		'測試', '這是一段正文。', '提醒', '這是 Callout。', '這是人工智慧。',
+		'來源：', '公式 很有名。', '正文有註腳。',
+	]);
+});
+
+test('conservatively preserves unmatched comments and fences without punctuation drift', () => {
+	assert.deepEqual(splitIntoSentences('前句。\n<!-- unclosed\n後句。'), ['前句。', '<!-- unclosed', '後句。']);
+	assert.deepEqual(splitIntoSentences('前句。\n```ts\nconst x = 1;\n後句。'), ['前句。', '```ts', 'const x = 1;', '後句。']);
 });

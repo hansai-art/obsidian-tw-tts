@@ -83,6 +83,15 @@ test('finishing the last sentence calls onDone and stops', () => {
 	assert.equal(engine.isPlaying, false);
 });
 
+test('start past the final sentence completes without replaying the last sentence', () => {
+	let done = 0;
+	const { synth, engine } = setup({ onDone: () => done++ });
+	engine.start(['甲', '乙'], 2);
+	assert.equal(synth.spoken.length, 0);
+	assert.equal(done, 1);
+	assert.equal(engine.isPlaying, false);
+});
+
 test('applies voice and rate to each utterance', () => {
 	const synth = new MockSynth();
 	const fakeVoice = { name: 'zh-TW-Test' } as unknown as SpeechSynthesisVoice;

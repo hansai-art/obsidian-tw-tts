@@ -87,3 +87,18 @@ test('EdgeTtsEngine stops and reports once when synthesis rejects', async () => 
 	assert.equal(errors.length, 1);
 	assert.equal(engine.isPlaying, false);
 });
+
+test('EdgeTtsEngine completes past the final sentence without generating the last sentence', () => {
+	const generated: string[] = [];
+	let done = 0;
+	const engine = new EdgeTtsEngine(
+		{ synthesize: async (text) => { generated.push(text); return new Blob(['audio']); } },
+		() => { throw new Error('audio must not be created'); },
+		{ voice: 'zh-CN-YunyangNeural', rate: 1, pitch: -7 },
+		{ onDone: () => done++ },
+	);
+	engine.start(['第一句', '第二句'], 2);
+	assert.deepEqual(generated, []);
+	assert.equal(done, 1);
+	assert.equal(engine.isPlaying, false);
+});

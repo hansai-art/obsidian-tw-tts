@@ -4,6 +4,7 @@ import {
 	voiceDropdownOptions,
 	coreSettingDefs,
 	helpGroupDefs,
+	contentReadingGroupDef,
 } from '../src/setting-defs';
 import { STRINGS } from '../src/i18n/zh-tw';
 
@@ -85,6 +86,18 @@ test('silent-symbols field is a single-line text input with the symbol hint', ()
 	if (tc.type !== 'text') return;
 	assert.equal(tc.key, 'silentSymbols');
 	assert.equal(tc.placeholder, STRINGS.settingSilentSymbolsPlaceholder);
+});
+
+test('content reading group exposes the three parser-option toggles', () => {
+	const group = contentReadingGroupDef();
+	assert.equal(group.heading, STRINGS.contentReadingHeading);
+	const controls = group.items?.map((item) =>
+		(item as { control?: { key?: string; type?: string } }).control,
+	) ?? [];
+	assert.deepEqual(controls.map((control) => control?.key ?? null), [
+		'readStandaloneTags', 'readBareUrls', 'readMath',
+	]);
+	assert.ok(controls.every((control) => control?.type === 'toggle'));
 });
 
 test('helpGroupDefs mirrors the tutorial steps and platform hints', () => {

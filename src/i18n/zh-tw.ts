@@ -110,6 +110,13 @@ export const STRINGS = {
 	settingSilentSymbolsDesc:
 		'填在這裡的符號會被略過不唸,用空白分隔。適合拿來當列點的符號(否則 ○ 會被唸成「零」)。畫面仍顯示原文。',
 	settingSilentSymbolsPlaceholder: '○ ● ◎ ※ ▪ ‧',
+	contentReadingHeading: '內容朗讀',
+	settingReadStandaloneTags: '朗讀獨立標籤列',
+	settingReadStandaloneTagsDesc: '開啟後會朗讀只有 #標籤 的獨立行；正文中的標籤仍會保留標籤文字，但不朗讀 # 符號。',
+	settingReadBareUrls: '朗讀網址',
+	settingReadBareUrlsDesc: '開啟後會朗讀直接出現在筆記中的 http/https 網址。Markdown 連結仍只朗讀顯示文字。',
+	settingReadMath: '朗讀數學式',
+	settingReadMathDesc: '開啟後會將 MathJax / LaTeX 原始內容直接交給語音引擎；不會將數學式轉成自然語言。',
 	// 試聽
 	previewHeading: '試聽語音',
 	previewDesc: '依目前選擇的語音、語速與音高播放一段範例；切換系統語音時也會自動試聽。',

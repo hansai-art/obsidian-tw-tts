@@ -66,6 +66,7 @@
 - **資料夾連播含子資料夾**:右鍵連播時是否也含子資料夾內的筆記(預設只該層)。
 - **發音字典**:一行一條「原文=唸法」(`#` 開頭為註解),校正破音字與專有名詞。例:`iPAS=愛帕斯`、`臺=台`。只改朗讀發音,畫面仍顯示原文。
 - **不朗讀的符號**:一行填完、用空白分隔,例:`○ ● ◎ ※`。這些符號送去朗讀前會被刪掉(否則 `○` 會被唸成「零」),畫面仍顯示原文。整行只有這類符號時會被安靜跳過。若同一個符號在發音字典裡另有指定唸法,以發音字典為準。
+- **內容朗讀**:可分別開啟「朗讀獨立標籤列」「朗讀網址」「朗讀數學式」。三項預設皆關閉；數學式開啟時只交付原始 MathJax／LaTeX，不會轉成自然語言。
 
 ### Edge 線上語音（桌面版）
 
@@ -96,6 +97,14 @@ Android 版固定切換為系統「隨選朗讀」模式。外掛會顯示啟用
 ### Callout 與 Highlightr
 
 桌機與 iPhone／iPad 的朗讀文字會略過 Obsidian Callout 的 `[!type]`／摺疊符號，以及 Highlightr 寫入的 `<mark>`／`<font>` 顯示標籤與色碼，只保留自訂標題及可見內文。這項相容性限於筆記原始 Markdown 中的 Callout 與上述標籤，不代表支援所有第三方外掛或所有 HTML。
+
+### 自動略過 Obsidian 語法
+
+Hans TW TTS 在切句與交給任何語音引擎前，會先用同一套內容解析器清理筆記。預設會略過 Block ID（如 `^473eef`）、`%% comments %%`、HTML comments、Footnotes、Embed syntax、fenced code blocks 與 Callout metadata；Markdown link／wikilink 則保留可見文字。朗讀窗格顯示的也是清理後內容，因此系統語音、Edge CLI、Azure、選取朗讀及游標起讀會保持一致。
+
+獨立標籤列、直接出現的 `http/https` 網址與數學式可在「內容朗讀」設定中個別開啟。未知或無法確定的語法會保守保留，避免誤刪正文。
+
+本外掛的內容清理功能適用於由 Hans TW TTS 自己處理朗讀的桌機與 iOS 路徑；Android 系統隨選朗讀由 Android 系統控制。
 
 ## Azure Speech API（自己的 Key）
 
@@ -160,6 +169,7 @@ A Traditional-Chinese-first read-aloud and folder-playback plugin. The default s
 - Chinese-first voice filtering and quality ordering, with speed and pitch controls
 - Custom pronunciation rules and silent-symbol filtering across all three providers
 - Callout and Highlightr markup cleanup
+- Shared Markdown/Obsidian cleanup for block IDs, comments, footnotes, embeds and fenced code, with optional standalone-tag, bare-URL and raw-math reading
 - Privacy-safe environment diagnostics that exclude note text, credentials, vault names, and full private paths
 - Traditional Chinese interface
 

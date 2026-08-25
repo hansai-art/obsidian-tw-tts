@@ -81,7 +81,11 @@ export class TtsEngine {
 			this.cb.onError?.('沒有可朗讀的內容');
 			return;
 		}
-		this.playFrom(Math.min(Math.max(0, fromIndex), sentences.length - 1));
+		if (fromIndex >= sentences.length) {
+			this.finish();
+			return;
+		}
+		this.playFrom(Math.max(0, fromIndex));
 	}
 
 	/**
