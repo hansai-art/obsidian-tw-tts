@@ -236,12 +236,17 @@ export class TwTtsReaderView extends ItemView {
 		this.currentFile = file;
 		this.updateTitle();
 		const content = await this.app.vault.cachedRead(file);
-		const sentences = splitIntoSentences(content);
+		const sentences = splitIntoSentences(content, this.plugin.getMarkdownReaderOptions());
 		if (sentences.length === 0) {
 			if (this.queueIndex + 1 < this.queue.length) {
 				await this.playQueueItem(this.queueIndex + 1);
 				return;
 			}
+			new Notice(STRINGS.noContent);
+			this.finishUI();
+			return;
+		}
+		if (startIndex >= sentences.length) {
 			new Notice(STRINGS.noContent);
 			this.finishUI();
 			return;

@@ -263,7 +263,11 @@ export class EdgeTtsEngine {
 			return;
 		}
 		this.sentences = sentences;
-		this.playFrom(Math.min(Math.max(0, fromIndex), sentences.length - 1));
+		if (fromIndex >= sentences.length) {
+			this.finish();
+			return;
+		}
+		this.playFrom(Math.max(0, fromIndex));
 	}
 
 	setRate(rate: number): void {

@@ -136,6 +136,31 @@ export function coreSettingDefs(voices: VoiceLike[]): SettingDefinitionControl[]
 	];
 }
 
+/** Parser settings shared by whole-note, selection and cursor playback. */
+export function contentReadingGroupDef(): SettingDefinitionGroup {
+	return {
+		type: 'group',
+		heading: STRINGS.contentReadingHeading,
+		items: [
+			{
+				name: STRINGS.settingReadStandaloneTags,
+				desc: STRINGS.settingReadStandaloneTagsDesc,
+				control: { type: 'toggle', key: 'readStandaloneTags' },
+			},
+			{
+				name: STRINGS.settingReadBareUrls,
+				desc: STRINGS.settingReadBareUrlsDesc,
+				control: { type: 'toggle', key: 'readBareUrls' },
+			},
+			{
+				name: STRINGS.settingReadMath,
+				desc: STRINGS.settingReadMathDesc,
+				control: { type: 'toggle', key: 'readMath' },
+			},
+		],
+	};
+}
+
 /**
  * 教學區的宣告式群組:兩個 group,每列 name+desc 皆進設定搜尋索引。
  * 1.13.0+ 走此版(純文字、無 Lucide 圖示);<1.13.0 走 display() 的圖示版。
