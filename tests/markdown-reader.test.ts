@@ -13,6 +13,8 @@ test('exports conservative parser defaults', () => {
 		readStandaloneTags: false,
 		readBareUrls: false,
 		readMath: false,
+		readTaskStatus: false,
+		readFoldedCalloutContent: true,
 	});
 });
 
@@ -114,6 +116,77 @@ test('strips heading markers inside callouts and skips empty quote spacer lines'
 		'五級標題',
 		'六級標題',
 		'內文。',
+	]);
+});
+
+test('applies headings, lists, fences, math, footnotes and tables after unwrapping a callout', () => {
+	const markdown = [
+		'> [!danger] 注意事項',
+		'>',
+		'> ##### 五級標題 #####',
+		'> - 一般項目',
+		'> 1. 編號項目',
+		'> - [x] 完成項目',
+		'> ```js',
+		'> const hidden = "# 不應朗讀";',
+		'> ```',
+		'> $$',
+		'> E = mc^2',
+		'> $$',
+		'> [^1]: 隱藏註腳',
+		'>     隱藏續行',
+		'> | 欄一 | 欄二 |',
+		'> | --- | --- |',
+		'> | 甲 | 乙 |',
+	].join('\n');
+
+	assert.deepEqual(texts(markdown), [
+		'注意事項', '五級標題', '一般項目', '編號項目', '完成項目', '欄一，欄二', '甲，乙',
+	]);
+});
+
+test('can read semantic task states without exposing checkbox syntax', () => {
+	const markdown = [
+		'- [ ] 待辦', '- [x] 完成', '- [/] 進行', '- [-] 取消',
+		'- [>] 延後', '- [<] 排程', '- [!] 重要事項', '- [?] 待確認', '- [*] 自訂',
+	].join('\n');
+	assert.deepEqual(texts(markdown, { readTaskStatus: true }), [
+		'未完成，待辦', '已完成，完成', '進行中，進行', '已取消，取消',
+		'已延後，延後', '已排程，排程', '重要，重要事項', '有疑問，待確認', '已標記，自訂',
+	]);
+	assert.deepEqual(texts(markdown), [
+		'待辦', '完成', '進行', '取消', '延後', '排程', '重要事項', '待確認', '自訂',
+	]);
+});
+
+test('can skip folded callout bodies while retaining their custom titles', () => {
+	const markdown = [
+		'> [!warning]- 收合摘要',
+		'> 秘密內文',
+		'>> [!note] 巢狀標題',
+		'>> 巢狀內文',
+		'> 最後一段',
+		'',
+		'> [!tip]+ 展開摘要',
+		'> 展開內文',
+		'',
+		'外部正文',
+	].join('\n');
+
+	assert.deepEqual(texts(markdown, { readFoldedCalloutContent: false }), [
+		'收合摘要', '展開摘要', '展開內文', '外部正文',
+	]);
+	assert.deepEqual(texts(markdown), [
+		'收合摘要', '秘密內文', '巢狀標題', '巢狀內文', '最後一段',
+		'展開摘要', '展開內文', '外部正文',
+	]);
+});
+
+test('records quote spacer lines as paragraph boundaries without creating empty blocks', () => {
+	assert.deepEqual(parseReadableBlocks('> [!note] 提醒\n> 第一段。\n>\n> 第二段。'), [
+		{ text: '提醒', kind: 'callout', sourceLine: 0 },
+		{ text: '第一段。', kind: 'quote', sourceLine: 1, paragraphBreakAfter: true },
+		{ text: '第二段。', kind: 'quote', sourceLine: 3 },
 	]);
 });
 

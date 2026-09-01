@@ -5,6 +5,13 @@
  * 透過依賴注入(synth + createUtterance)讓測試能用假物件手動觸發事件。
  */
 
+import {
+	isSpeakableText,
+	normalizeSpeechSentences,
+	type SpeechSentence,
+	type SpeechSentenceInput,
+} from './speech-plan';
+
 /** 只取用得到的 utterance 欄位,方便在測試裡用普通物件替代。 */
 export interface TtsUtterance {
 	text: string;
@@ -46,11 +53,13 @@ export function semitonesToSpeechPitch(semitones: number): number {
 }
 
 export class TtsEngine {
-	private sentences: string[] = [];
+	private sentences: SpeechSentence[] = [];
 	private index = 0;
 	private active: TtsUtterance | null = null;
 	private playing = false;
 	private paused = false;
+	private pauseTimer: number | null = null;
+	private pendingAdvance = false;
 	/** 本輪有沒有真的唸出過任何一句(用來分辨「唸完了」與「整篇都沒東西可唸」)。 */
 	private spokeAny = false;
 
@@ -73,15 +82,15 @@ export class TtsEngine {
 	}
 
 	/** 開始朗讀。fromIndex 可從指定句開始。 */
-	start(sentences: string[], fromIndex = 0): void {
-		this.sentences = sentences;
+	start(sentences: SpeechSentenceInput[], fromIndex = 0): void {
+		this.sentences = normalizeSpeechSentences(sentences);
 		this.spokeAny = false;
-		if (sentences.length === 0) {
+		if (this.sentences.length === 0) {
 			this.playing = false;
 			this.cb.onError?.('沒有可朗讀的內容');
 			return;
 		}
-		if (fromIndex >= sentences.length) {
+		if (fromIndex >= this.sentences.length) {
 			this.finish();
 			return;
 		}
@@ -94,7 +103,7 @@ export class TtsEngine {
 	 */
 	setRate(rate: number): void {
 		this.opts.rate = rate;
-		if (this.playing && !this.paused) {
+		if (this.playing && !this.paused && !this.pauseTimer) {
 			this.playFrom(this.index);
 		}
 	}
@@ -109,13 +118,19 @@ export class TtsEngine {
 		if (!this.playing) return;
 		this.opts.synth.resume();
 		this.paused = false;
+		if (this.pendingAdvance) {
+			this.pendingAdvance = false;
+			this.advance();
+		}
 	}
 
 	stop(): void {
+		this.clearPauseTimer();
 		this.opts.synth.cancel();
 		this.active = null;
 		this.playing = false;
 		this.paused = false;
+		this.pendingAdvance = false;
 	}
 
 	next(): void {
@@ -140,6 +155,8 @@ export class TtsEngine {
 
 	/** 從指定句(重新)開始播放。 */
 	private playFrom(i: number): void {
+		this.clearPauseTimer();
+		this.pendingAdvance = false;
 		this.index = i;
 		this.opts.synth.cancel();
 		this.active = null;
@@ -157,8 +174,8 @@ export class TtsEngine {
 	private speakCurrent(): void {
 		let u: TtsUtterance | null = null;
 		while (this.index < this.sentences.length) {
-			const candidate = this.opts.createUtterance(this.sentences[this.index]);
-			if (candidate.text.trim() !== '') {
+			const candidate = this.opts.createUtterance(this.sentences[this.index].text);
+			if (isSpeakableText(candidate.text)) {
 				u = candidate;
 				break;
 			}
@@ -191,7 +208,8 @@ export class TtsEngine {
 		};
 		u.onend = () => {
 			if (u !== this.active) return;
-			this.advance();
+			this.active = null;
+			this.scheduleAdvance(this.sentences[idx].pauseAfterMs);
 		};
 		u.onerror = () => {
 			if (u !== this.active) return;
@@ -214,10 +232,34 @@ export class TtsEngine {
 		}
 	}
 
+	private scheduleAdvance(delayMs: number): void {
+		if (delayMs <= 0) {
+			this.advance();
+			return;
+		}
+		this.clearPauseTimer();
+		this.pauseTimer = window.setTimeout(() => {
+			this.pauseTimer = null;
+			if (!this.playing) return;
+			if (this.paused) {
+				this.pendingAdvance = true;
+				return;
+			}
+			this.advance();
+		}, delayMs);
+	}
+
+	private clearPauseTimer(): void {
+		if (this.pauseTimer) window.clearTimeout(this.pauseTimer);
+		this.pauseTimer = null;
+	}
+
 	private finish(): void {
+		this.clearPauseTimer();
 		this.playing = false;
 		this.paused = false;
 		this.active = null;
+		this.pendingAdvance = false;
 		this.cb.onDone?.();
 	}
 }

@@ -71,6 +71,14 @@ export interface TwTtsSettings {
 	readStandaloneTags: boolean;
 	readBareUrls: boolean;
 	readMath: boolean;
+	/** 空白行分隔段落後的額外停頓，毫秒。 */
+	paragraphPauseMs: number;
+	/** 標題與 Callout 自訂標題後的額外停頓，毫秒。 */
+	headingPauseMs: number;
+	/** 任務清單是否先朗讀核取方塊的語意狀態。 */
+	readTaskStatus: boolean;
+	/** 是否朗讀預設收合（[!type]-）Callout 的內文。 */
+	readFoldedCalloutContent: boolean;
 }
 
 export const DEFAULT_SETTINGS: TwTtsSettings = {
@@ -89,6 +97,10 @@ export const DEFAULT_SETTINGS: TwTtsSettings = {
 	readStandaloneTags: false,
 	readBareUrls: false,
 	readMath: false,
+	paragraphPauseMs: 400,
+	headingPauseMs: 600,
+	readTaskStatus: false,
+	readFoldedCalloutContent: true,
 };
 
 export class TwTtsSettingTab extends PluginSettingTab {
@@ -464,6 +476,44 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.readMath)
 				.onChange(async (value) => {
 					this.plugin.settings.readMath = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName(STRINGS.settingParagraphPause)
+			.setDesc(STRINGS.settingParagraphPauseDesc)
+			.addSlider((slider) => slider
+				.setLimits(0, 1500, 100)
+				.setValue(this.plugin.settings.paragraphPauseMs)
+				.onChange(async (value) => {
+					this.plugin.settings.paragraphPauseMs = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName(STRINGS.settingHeadingPause)
+			.setDesc(STRINGS.settingHeadingPauseDesc)
+			.addSlider((slider) => slider
+				.setLimits(0, 1500, 100)
+				.setValue(this.plugin.settings.headingPauseMs)
+				.onChange(async (value) => {
+					this.plugin.settings.headingPauseMs = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName(STRINGS.settingReadTaskStatus)
+			.setDesc(STRINGS.settingReadTaskStatusDesc)
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.readTaskStatus)
+				.onChange(async (value) => {
+					this.plugin.settings.readTaskStatus = value;
+					await this.plugin.saveSettings();
+				}));
+		new Setting(containerEl)
+			.setName(STRINGS.settingReadFoldedCalloutContent)
+			.setDesc(STRINGS.settingReadFoldedCalloutContentDesc)
+			.addToggle((toggle) => toggle
+				.setValue(this.plugin.settings.readFoldedCalloutContent)
+				.onChange(async (value) => {
+					this.plugin.settings.readFoldedCalloutContent = value;
 					await this.plugin.saveSettings();
 				}));
 

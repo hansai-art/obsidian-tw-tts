@@ -13,18 +13,23 @@ export interface ReadableBlock {
 	kind: ReadableBlockKind;
 	sourceLine: number;
 	headingLevel?: number;
+	paragraphBreakAfter?: boolean;
 }
 
 export interface MarkdownReaderOptions {
 	readStandaloneTags: boolean;
 	readBareUrls: boolean;
 	readMath: boolean;
+	readTaskStatus: boolean;
+	readFoldedCalloutContent: boolean;
 }
 
 export const DEFAULT_MARKDOWN_READER_OPTIONS: MarkdownReaderOptions = {
 	readStandaloneTags: false,
 	readBareUrls: false,
 	readMath: false,
+	readTaskStatus: false,
+	readFoldedCalloutContent: true,
 };
 
 interface ProtectedText {
@@ -104,7 +109,7 @@ function stripDelimitedComments(
 			const lineEnd = input.indexOf('\n', index);
 			const firstLineEnd = lineEnd < 0 ? input.length : lineEnd;
 			const firstLine = input.slice(index, firstLineEnd);
-			const fence = firstLine.match(/^\s{0,3}(`{3,}|~{3,})/);
+			const fence = firstLine.match(/^\s{0,3}(?:>\s*)*(`{3,}|~{3,})/);
 			if (fence) {
 				const char = fence[1][0];
 				const length = fence[1].length;
@@ -113,7 +118,7 @@ function stripDelimitedComments(
 				while (cursor < input.length) {
 					const nextEnd = input.indexOf('\n', cursor);
 					const currentEnd = nextEnd < 0 ? input.length : nextEnd;
-					const candidate = input.slice(cursor, currentEnd).trim();
+					const candidate = input.slice(cursor, currentEnd).trim().replace(/^(?:>\s*)+/, '');
 					const closing = candidate.match(/^(`+|~+)\s*$/);
 					fenceEnd = currentEnd;
 					if (closing && closing[1][0] === char && closing[1].length >= length) break;
@@ -295,19 +300,74 @@ function frontmatterEnd(lines: string[]): number {
 	return -1;
 }
 
-function hasFenceCloser(lines: string[], start: number, char: string, length: number): boolean {
+interface SourceLine {
+	content: string;
+	quoteDepth: number;
+	sourceLine: number;
+	trimmed: string;
+}
+
+interface CalloutState {
+	depth: number;
+	skipBody: boolean;
+}
+
+function unwrapQuoteLine(rawLine: string, sourceLine: number): SourceLine {
+	let content = rawLine;
+	let quoteDepth = 0;
+	while (true) {
+		const marker = content.match(/^ {0,3}>[ \t]?/);
+		if (!marker) break;
+		content = content.slice(marker[0].length);
+		quoteDepth++;
+	}
+	return { content, quoteDepth, sourceLine, trimmed: content.trim() };
+}
+
+function hasFenceCloser(
+	lines: SourceLine[],
+	start: number,
+	char: string,
+	length: number,
+	quoteDepth: number,
+): boolean {
 	for (let index = start + 1; index < lines.length; index++) {
-		const closing = lines[index].trim().match(/^(`+|~+)\s*$/);
+		if (lines[index].quoteDepth < quoteDepth) return false;
+		if (lines[index].quoteDepth !== quoteDepth) continue;
+		const closing = lines[index].trimmed.match(/^(`+|~+)\s*$/);
 		if (closing && closing[1][0] === char && closing[1].length >= length) return true;
 	}
 	return false;
 }
 
-function hasMathBlockCloser(lines: string[], start: number): boolean {
+function hasMathBlockCloser(lines: SourceLine[], start: number, quoteDepth: number): boolean {
 	for (let index = start + 1; index < lines.length; index++) {
-		if (lines[index].trim() === '$$') return true;
+		if (lines[index].quoteDepth < quoteDepth) return false;
+		if (lines[index].quoteDepth === quoteDepth && lines[index].trimmed === '$$') return true;
 	}
 	return false;
+}
+
+function isThematicBreak(line: string): boolean {
+	const compact = line.trim().replace(/[ \t]/g, '');
+	return /^(-{3,}|\*{3,}|_{3,})$/.test(compact);
+}
+
+function taskStatusLabel(status: string): string {
+	if (status === ' ') return '未完成';
+	if (status.toLowerCase() === 'x') return '已完成';
+	if (status === '-') return '已取消';
+	if (status === '/') return '進行中';
+	if (status === '>') return '已延後';
+	if (status === '<') return '已排程';
+	if (status === '!') return '重要';
+	if (status === '?') return '有疑問';
+	return '已標記';
+}
+
+function markParagraphBreak(blocks: ReadableBlock[]): void {
+	const previous = blocks[blocks.length - 1];
+	if (previous) previous.paragraphBreakAfter = true;
 }
 
 export function parseReadableBlocks(
@@ -319,97 +379,121 @@ export function parseReadableBlocks(
 	const resolved = { ...DEFAULT_MARKDOWN_READER_OPTIONS, ...options };
 	let source = stripDelimitedComments(markdown, '%%', '%%', prefixMode, true);
 	source = stripDelimitedComments(source, '<!--', '-->', prefixMode, false);
-	const lines = source.split(/\r?\n/);
-	const yamlEnd = frontmatterEnd(lines);
-	const unfinishedPrefixFrontmatter = prefixMode && lines[0]?.trim() === '---' && yamlEnd < 0;
+	const rawLines = source.split(/\r?\n/);
+	const lines = rawLines.map(unwrapQuoteLine);
+	const yamlEnd = frontmatterEnd(rawLines);
+	const unfinishedPrefixFrontmatter = prefixMode && rawLines[0]?.trim() === '---' && yamlEnd < 0;
 	const blocks: ReadableBlock[] = [];
-	let fence: { char: string; length: number } | null = null;
-	let mathBlock = false;
-	let footnoteContinuation = false;
+	const callouts: CalloutState[] = [];
+	let fence: { char: string; length: number; quoteDepth: number } | null = null;
+	let mathBlock: { quoteDepth: number } | null = null;
+	let footnoteContinuation: { quoteDepth: number } | null = null;
 
-	for (let sourceLine = 0; sourceLine < lines.length; sourceLine++) {
-		const rawLine = lines[sourceLine];
-		const trimmed = rawLine.trim();
+	for (let index = 0; index < lines.length; index++) {
+		const line = lines[index];
+		const { content, quoteDepth, sourceLine, trimmed } = line;
 		if (unfinishedPrefixFrontmatter) continue;
 		if (yamlEnd >= 0 && sourceLine <= yamlEnd) continue;
 
 		if (fence) {
-			const closing = trimmed.match(/^(`+|~+)\s*$/);
-			if (closing && closing[1][0] === fence.char && closing[1].length >= fence.length) fence = null;
+			if (quoteDepth >= fence.quoteDepth) {
+				const closing = quoteDepth === fence.quoteDepth
+					? trimmed.match(/^(`+|~+)\s*$/)
+					: null;
+				if (closing && closing[1][0] === fence.char && closing[1].length >= fence.length) fence = null;
+				continue;
+			}
+			fence = null;
+		}
+
+		if (mathBlock) {
+			if (quoteDepth >= mathBlock.quoteDepth) {
+				if (quoteDepth === mathBlock.quoteDepth && trimmed === '$$') {
+					mathBlock = null;
+					continue;
+				}
+				if (resolved.readMath && trimmed) {
+					const text = normalizeInline(content, { ...resolved, readMath: true }, prefixMode);
+					if (text) blocks.push({ text, kind: quoteDepth > 0 ? 'quote' : 'paragraph', sourceLine });
+				}
+				continue;
+			}
+			mathBlock = null;
+		}
+
+		if (footnoteContinuation) {
+			if (quoteDepth === footnoteContinuation.quoteDepth && /^(?: {4}|\t)/.test(content)) continue;
+			footnoteContinuation = null;
+		}
+
+		while (callouts.length > 0 && quoteDepth < callouts[callouts.length - 1].depth) callouts.pop();
+		if (prefixMode && /^\[![^\]\r\n]*$/.test(trimmed)) continue;
+		const directive = quoteDepth > 0
+			? trimmed.match(/^\[!([^\]\r\n]+)\]([+-])?(?:[ \t]+(.*)|$)/)
+			: null;
+		if (directive) {
+			while (callouts.length > 0 && quoteDepth <= callouts[callouts.length - 1].depth) callouts.pop();
+			const hiddenByAncestor = callouts.some((callout) => callout.skipBody);
+			const skipBody = hiddenByAncestor
+				|| (directive[2] === '-' && !resolved.readFoldedCalloutContent);
+			callouts.push({ depth: quoteDepth, skipBody });
+			if (!hiddenByAncestor) {
+				const title = normalizeInline(directive[3] ?? '', resolved, prefixMode);
+				if (title) blocks.push({ text: title, kind: 'callout', sourceLine });
+			}
 			continue;
 		}
+		if (callouts.some((callout) => callout.skipBody && quoteDepth >= callout.depth)) continue;
+		if (!trimmed) {
+			markParagraphBreak(blocks);
+			continue;
+		}
+
 		const openingFence = trimmed.match(/^(`{3,}|~{3,})(?:[^`~].*)?$/);
 		if (openingFence) {
 			const char = openingFence[1][0];
 			const length = openingFence[1].length;
-			if (prefixMode || hasFenceCloser(lines, sourceLine, char, length)) {
-				fence = { char, length };
+			if (prefixMode || hasFenceCloser(lines, index, char, length, quoteDepth)) {
+				fence = { char, length, quoteDepth };
 				continue;
 			}
 		}
 
-		if (mathBlock) {
-			if (trimmed === '$$') {
-				mathBlock = false;
-				continue;
-			}
-			if (resolved.readMath && trimmed) {
-				const text = normalizeInline(rawLine, { ...resolved, readMath: true }, prefixMode);
-				if (text) blocks.push({ text, kind: 'paragraph', sourceLine });
-			}
-			continue;
-		}
 		if (trimmed === '$$') {
-			if (prefixMode || hasMathBlockCloser(lines, sourceLine)) {
-				mathBlock = true;
+			if (prefixMode || hasMathBlockCloser(lines, index, quoteDepth)) {
+				mathBlock = { quoteDepth };
 				continue;
 			}
-			blocks.push({ text: '$$', kind: 'paragraph', sourceLine });
+			blocks.push({ text: '$$', kind: quoteDepth > 0 ? 'quote' : 'paragraph', sourceLine });
 			continue;
 		}
 		const singleLineMath = trimmed.match(/^\$\$(.+)\$\$$/);
 		if (singleLineMath) {
-			if (resolved.readMath) blocks.push({ text: singleLineMath[1].trim(), kind: 'paragraph', sourceLine });
+			if (resolved.readMath) blocks.push({ text: singleLineMath[1].trim(), kind: quoteDepth > 0 ? 'quote' : 'paragraph', sourceLine });
 			continue;
 		}
 
-		if (footnoteContinuation) {
-			if (/^(?: {4}|\t)/.test(rawLine)) continue;
-			footnoteContinuation = false;
-		}
 		if (/^\[\^[^\]]+\]:/.test(trimmed)) {
-			footnoteContinuation = true;
+			footnoteContinuation = { quoteDepth };
 			continue;
 		}
-		if (!trimmed) continue;
-		if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) continue;
+		if (isThematicBreak(trimmed)) continue;
 
-		const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+		const heading = trimmed.match(/^(#{1,6})(?:[ \t]+|$)(.*)$/);
 		if (heading) {
-			const text = normalizeInline(heading[2], resolved, prefixMode);
-			if (text) blocks.push({ text, kind: 'heading', sourceLine, headingLevel: heading[1].length });
-			continue;
-		}
-
-		// An empty blockquote line is only visual spacing inside a callout.
-		if (/^(?:>\s*)+$/.test(trimmed)) continue;
-
-		const quote = trimmed.match(/^(?:>\s*)+(.+)$/);
-		if (quote) {
-			let body = quote[1];
-			const directive = body.match(/^\[![^\]\r\n]+\][+-]?(?:\s+(.*)|$)/);
-			if (prefixMode && /^\[![^\]\r\n]*$/.test(body)) continue;
-			if (directive) body = directive[1] ?? '';
-			// Headings nested in blockquotes/callouts are parsed after the quote marker.
-			body = body.replace(/^#{1,6}\s+/, '');
+			const body = heading[2].replace(/[ \t]+#+[ \t]*$/, '').trim();
 			const text = normalizeInline(body, resolved, prefixMode);
-			if (text) blocks.push({ text, kind: directive ? 'callout' : 'quote', sourceLine });
+			if (text) blocks.push({ text, kind: 'heading', sourceLine, headingLevel: heading[1].length });
 			continue;
 		}
 
 		const list = trimmed.match(/^(?:[-*+]\s+|\d+[.)]\s+)(.*)$/);
 		if (list) {
-			const body = list[1].replace(/^\[[^\]\r\n]\]\s+/, '');
+			let body = list[1];
+			const task = body.match(/^\[([^\]\r\n])\](?:[ \t]+|$)(.*)$/);
+			if (task) {
+				body = `${resolved.readTaskStatus ? `${taskStatusLabel(task[1])}，` : ''}${task[2]}`;
+			}
 			const text = normalizeInline(body, resolved, prefixMode);
 			if (text) blocks.push({ text, kind: 'list', sourceLine });
 			continue;
@@ -417,8 +501,13 @@ export function parseReadableBlocks(
 
 		if (isTableSeparator(trimmed)) continue;
 		const hasOuterPipes = /^\|.*\|$/.test(trimmed);
-		const startsPipeTable = sourceLine + 1 < lines.length && trimmed.includes('|') && isTableSeparator(lines[sourceLine + 1]);
-		const previousIsSeparator = sourceLine > 0 && isTableSeparator(lines[sourceLine - 1]);
+		const startsPipeTable = index + 1 < lines.length
+			&& lines[index + 1].quoteDepth === quoteDepth
+			&& trimmed.includes('|')
+			&& isTableSeparator(lines[index + 1].trimmed);
+		const previousIsSeparator = index > 0
+			&& lines[index - 1].quoteDepth === quoteDepth
+			&& isTableSeparator(lines[index - 1].trimmed);
 		if (hasOuterPipes || startsPipeTable || previousIsSeparator) {
 			const text = normalizeInline(tableText(trimmed), resolved, prefixMode);
 			if (text) blocks.push({ text, kind: 'table', sourceLine });
@@ -428,12 +517,12 @@ export function parseReadableBlocks(
 		if (STANDALONE_TAGS.test(trimmed)) {
 			if (!resolved.readStandaloneTags) continue;
 			const text = trimmed.split('#').join('').split('/').join(' ').replace(/\s+/g, ' ').trim();
-			if (text) blocks.push({ text, kind: 'paragraph', sourceLine });
+			if (text) blocks.push({ text, kind: quoteDepth > 0 ? 'quote' : 'paragraph', sourceLine });
 			continue;
 		}
 
-		const text = normalizeInline(rawLine, resolved, prefixMode);
-		if (text) blocks.push({ text, kind: 'paragraph', sourceLine });
+		const text = normalizeInline(content, resolved, prefixMode);
+		if (text) blocks.push({ text, kind: quoteDepth > 0 ? 'quote' : 'paragraph', sourceLine });
 	}
 	return blocks;
 }

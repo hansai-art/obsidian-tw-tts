@@ -9,7 +9,8 @@ import {
 import { STRINGS } from './i18n/zh-tw';
 import {
 	sentenceIndexForPrefix,
-	splitIntoSentences,
+	splitIntoSpeechSentences,
+	type SpeechTimingOptions,
 } from './sentence-splitter';
 import { formatTtsDiagnostics } from './tts-diagnostics';
 import { orderNotesByPath } from './note-order';
@@ -184,7 +185,11 @@ export default class TwTtsPlugin extends Plugin {
 			new Notice(STRINGS.noSelection);
 			return;
 		}
-		const sentences = splitIntoSentences(text, this.getMarkdownReaderOptions());
+		const sentences = splitIntoSpeechSentences(
+			text,
+			this.getMarkdownReaderOptions(),
+			this.getSpeechTimingOptions(),
+		);
 		const view = await this.activateView();
 		view.readSentences(sentences);
 	}
@@ -264,6 +269,15 @@ export default class TwTtsPlugin extends Plugin {
 			readStandaloneTags: this.settings.readStandaloneTags,
 			readBareUrls: this.settings.readBareUrls,
 			readMath: this.settings.readMath,
+			readTaskStatus: this.settings.readTaskStatus,
+			readFoldedCalloutContent: this.settings.readFoldedCalloutContent,
+		};
+	}
+
+	getSpeechTimingOptions(): SpeechTimingOptions {
+		return {
+			paragraphPauseMs: this.settings.paragraphPauseMs,
+			headingPauseMs: this.settings.headingPauseMs,
 		};
 	}
 }

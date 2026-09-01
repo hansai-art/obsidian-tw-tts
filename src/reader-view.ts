@@ -15,7 +15,8 @@ import {
 	type TtsUtterance,
 } from './tts-engine';
 import { pickVoice } from './voice-catalog';
-import { splitIntoSentences } from './sentence-splitter';
+import { splitIntoSpeechSentences } from './sentence-splitter';
+import type { SpeechSentence } from './speech-plan';
 import {
 	applyPronunciation,
 	parseRules,
@@ -39,7 +40,7 @@ interface ResolvedVoice {
 }
 
 interface PlaybackEngine {
-	start(sentences: string[], fromIndex?: number): void;
+	start(sentences: SpeechSentence[], fromIndex?: number): void;
 	setRate(rate: number): void;
 	pause(): void;
 	resume(): void;
@@ -187,7 +188,7 @@ export class TwTtsReaderView extends ItemView {
 	// ── 對外播放入口 ─────────────────────────────────────────
 
 	/** 朗讀一段句子(選取文字用;無檔案脈絡,不會自動下一篇)。 */
-	readSentences(sentences: string[], startIndex = 0): void {
+	readSentences(sentences: SpeechSentence[], startIndex = 0): void {
 		if (sentences.length === 0) {
 			new Notice(STRINGS.noContent);
 			return;
@@ -236,7 +237,11 @@ export class TwTtsReaderView extends ItemView {
 		this.currentFile = file;
 		this.updateTitle();
 		const content = await this.app.vault.cachedRead(file);
-		const sentences = splitIntoSentences(content, this.plugin.getMarkdownReaderOptions());
+		const sentences = splitIntoSpeechSentences(
+			content,
+			this.plugin.getMarkdownReaderOptions(),
+			this.plugin.getSpeechTimingOptions(),
+		);
 		if (sentences.length === 0) {
 			if (this.queueIndex + 1 < this.queue.length) {
 				await this.playQueueItem(this.queueIndex + 1);
@@ -270,7 +275,7 @@ export class TwTtsReaderView extends ItemView {
 		return shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp);
 	}
 
-	private beginEdgePlayback(sentences: string[], startIndex: number): void {
+	private beginEdgePlayback(sentences: SpeechSentence[], startIndex: number): void {
 		this.renderSentenceList(sentences);
 		this.rules = parseRules(this.plugin.settings.pronunciationRules);
 		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
@@ -293,14 +298,15 @@ export class TwTtsReaderView extends ItemView {
 			},
 		);
 		// Edge 的音檔也應套用既有發音字典與靜音符號，再由引擎逐句生成與播放。
-		const spoken = sentences.map((text) =>
-			applyPronunciation(applyPronunciation(text, this.rules), this.silentRules),
-		);
+		const spoken = sentences.map((sentence) => ({
+			...sentence,
+			text: applyPronunciation(applyPronunciation(sentence.text, this.rules), this.silentRules),
+		}));
 		this.engine.start(spoken, startIndex);
 		this.setPlayingUI(true, false);
 	}
 
-	private beginAzurePlayback(sentences: string[], startIndex: number): void {
+	private beginAzurePlayback(sentences: SpeechSentence[], startIndex: number): void {
 		this.renderSentenceList(sentences);
 		this.rules = parseRules(this.plugin.settings.pronunciationRules);
 		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
@@ -318,9 +324,10 @@ export class TwTtsReaderView extends ItemView {
 			},
 			'Azure Speech',
 		);
-		const spoken = sentences.map((text) =>
-			applyPronunciation(applyPronunciation(text, this.rules), this.silentRules),
-		);
+		const spoken = sentences.map((sentence) => ({
+			...sentence,
+			text: applyPronunciation(applyPronunciation(sentence.text, this.rules), this.silentRules),
+		}));
 		this.engine.start(spoken, startIndex);
 		this.setPlayingUI(true, false);
 	}
@@ -346,7 +353,7 @@ export class TwTtsReaderView extends ItemView {
 	}
 
 	private beginPlayback(
-		sentences: string[],
+		sentences: SpeechSentence[],
 		startIndex: number,
 		{ synthApi, voice }: ResolvedVoice,
 	): void {
@@ -394,12 +401,12 @@ export class TwTtsReaderView extends ItemView {
 		this.setPlayingUI(true, false);
 	}
 
-	private renderSentenceList(sentences: string[]): void {
+	private renderSentenceList(sentences: SpeechSentence[]): void {
 		this.listEl.empty();
 		this.sentenceEls = [];
 		this.currentEl = null;
-		sentences.forEach((text, i) => {
-			const el = this.listEl.createDiv({ cls: 'tw-tts-sentence', text });
+		sentences.forEach((sentence, i) => {
+			const el = this.listEl.createDiv({ cls: 'tw-tts-sentence', text: sentence.text });
 			el.dataset.index = String(i);
 			el.addEventListener('click', () => {
 				this.engine?.jumpTo(i);

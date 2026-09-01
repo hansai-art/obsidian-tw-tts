@@ -1,5 +1,12 @@
 /* global module -- Obsidian desktop loads plugin bundles through CommonJS. */
 
+import {
+	isSpeakableText,
+	normalizeSpeechSentences,
+	type SpeechSentence,
+	type SpeechSentenceInput,
+} from './speech-plan';
+
 type ExecFile = (
 	file: string,
 	args: string[],
@@ -239,12 +246,15 @@ export function createEdgeAudio(blob: Blob): EdgeAudio {
 
 /** Edge CLI 逐句產生並播放 MP3，確保後一句只在前一句結束後才開始。 */
 export class EdgeTtsEngine {
-	private sentences: string[] = [];
+	private sentences: SpeechSentence[] = [];
 	private index = 0;
 	private audio: EdgeAudio | null = null;
 	private playing = false;
 	private paused = false;
 	private generation = 0;
+	private pauseTimer: number | null = null;
+	private pendingAdvance = false;
+	private spokeAny = false;
 
 	constructor(
 		private readonly client: EdgeSpeechClient,
@@ -257,13 +267,14 @@ export class EdgeTtsEngine {
 	get isPlaying(): boolean { return this.playing; }
 	get isPaused(): boolean { return this.paused; }
 
-	start(sentences: string[], fromIndex = 0): void {
-		if (sentences.length === 0) {
+	start(sentences: SpeechSentenceInput[], fromIndex = 0): void {
+		this.sentences = normalizeSpeechSentences(sentences);
+		this.spokeAny = false;
+		if (this.sentences.length === 0) {
 			this.cb.onError?.('沒有可朗讀的內容');
 			return;
 		}
-		this.sentences = sentences;
-		if (fromIndex >= sentences.length) {
+		if (fromIndex >= this.sentences.length) {
 			this.finish();
 			return;
 		}
@@ -272,28 +283,35 @@ export class EdgeTtsEngine {
 
 	setRate(rate: number): void {
 		this.settings.rate = rate;
-		if (this.playing && !this.paused) this.playFrom(this.index);
+		if (this.playing && !this.paused && !this.pauseTimer) this.playFrom(this.index);
 	}
 
 	pause(): void {
-		if (!this.playing || !this.audio) return;
-		this.audio.pause();
+		if (!this.playing) return;
+		this.audio?.pause();
 		this.paused = true;
 	}
 
 	resume(): void {
-		if (!this.playing || !this.audio) return;
-		void this.audio.play();
+		if (!this.playing) return;
 		this.paused = false;
+		if (this.pendingAdvance) {
+			this.pendingAdvance = false;
+			this.advance();
+			return;
+		}
+		if (this.audio) void this.audio.play();
 	}
 
 	stop(): void {
+		this.clearPauseTimer();
 		this.generation++;
 		this.audio?.pause();
 		this.audio?.release();
 		this.audio = null;
 		this.playing = false;
 		this.paused = false;
+		this.pendingAdvance = false;
 	}
 
 	next(): void {
@@ -316,14 +334,26 @@ export class EdgeTtsEngine {
 	}
 
 	private async playCurrent(generation: number): Promise<void> {
+		while (this.index < this.sentences.length && !isSpeakableText(this.sentences[this.index].text)) {
+			this.index++;
+		}
+		if (this.index >= this.sentences.length) {
+			if (this.spokeAny) this.finish();
+			else this.fail('沒有可朗讀的內容');
+			return;
+		}
+		const sentence = this.sentences[this.index];
 		let audio: EdgeAudio;
 		try {
-			const blob = await this.client.synthesize(this.sentences[this.index], this.settings);
+			const blob = await this.client.synthesize(sentence.text, this.settings);
 			if (generation !== this.generation || !this.playing) return;
 			audio = this.createAudio(blob);
 			this.audio = audio;
 			audio.onEnded = () => {
-				if (generation === this.generation) this.advance();
+				if (generation !== this.generation) return;
+				audio.release();
+				if (this.audio === audio) this.audio = null;
+				this.scheduleAdvance(sentence.pauseAfterMs, generation);
 			};
 			audio.onError = () => {
 				if (generation === this.generation) this.fail(`${this.providerLabel} 語音播放失敗`);
@@ -339,6 +369,7 @@ export class EdgeTtsEngine {
 			return;
 		}
 		try {
+			this.spokeAny = true;
 			this.cb.onSentenceStart?.(this.index);
 			await audio.play();
 			if (this.paused) audio.pause();
@@ -355,6 +386,28 @@ export class EdgeTtsEngine {
 			const generation = ++this.generation;
 			void this.playCurrent(generation);
 		} else this.finish();
+	}
+
+	private scheduleAdvance(delayMs: number, generation: number): void {
+		if (delayMs <= 0) {
+			this.advance();
+			return;
+		}
+		this.clearPauseTimer();
+		this.pauseTimer = window.setTimeout(() => {
+			this.pauseTimer = null;
+			if (generation !== this.generation || !this.playing) return;
+			if (this.paused) {
+				this.pendingAdvance = true;
+				return;
+			}
+			this.advance();
+		}, delayMs);
+	}
+
+	private clearPauseTimer(): void {
+		if (this.pauseTimer) window.clearTimeout(this.pauseTimer);
+		this.pauseTimer = null;
 	}
 
 	private finish(): void {
