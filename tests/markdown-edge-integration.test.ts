@@ -16,6 +16,8 @@ test('Callout and Highlightr fixture reaches Edge as clean consecutive sentences
 	const fixture = [
 		'前文。',
 		'> [!note] 提醒',
+		'>',
+		'> ##### Callout 五級標題',
 		'> Callout 第一段。',
 		'> <mark style="background: #FFC26352;">Vibe Coding</mark>',
 		'> <mark style="background: #CACFD9A6;"><font color="#ff0000">巢狀重點</font></mark>',
@@ -58,6 +60,7 @@ test('Callout and Highlightr fixture reaches Edge as clean consecutive sentences
 	assert.deepEqual(sentences, [
 		'前文。',
 		'提醒',
+		'Callout 五級標題',
 		'Callout 第一段。',
 		'Vibe Coding',
 		'巢狀重點',
@@ -67,6 +70,6 @@ test('Callout and Highlightr fixture reaches Edge as clean consecutive sentences
 	assert.deepEqual(generated, sentences);
 	assert.deepEqual(started, sentences.map((_sentence, index) => index));
 	for (const sentence of generated) {
-		assert.doesNotMatch(sentence, /\[!|mark|font|style|class|#[0-9a-f]{6,8}/i);
+		assert.doesNotMatch(sentence, /\[!|mark|font|style|class|#{1,6}|^[>\s]+$|#[0-9a-f]{6,8}/i);
 	}
 });
