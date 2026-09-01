@@ -391,12 +391,17 @@ export function parseReadableBlocks(
 			continue;
 		}
 
+		// An empty blockquote line is only visual spacing inside a callout.
+		if (/^(?:>\s*)+$/.test(trimmed)) continue;
+
 		const quote = trimmed.match(/^(?:>\s*)+(.+)$/);
 		if (quote) {
 			let body = quote[1];
 			const directive = body.match(/^\[![^\]\r\n]+\][+-]?(?:\s+(.*)|$)/);
 			if (prefixMode && /^\[![^\]\r\n]*$/.test(body)) continue;
 			if (directive) body = directive[1] ?? '';
+			// Headings nested in blockquotes/callouts are parsed after the quote marker.
+			body = body.replace(/^#{1,6}\s+/, '');
 			const text = normalizeInline(body, resolved, prefixMode);
 			if (text) blocks.push({ text, kind: directive ? 'callout' : 'quote', sourceLine });
 			continue;
