@@ -91,6 +91,32 @@ test('preserves callout titles/bodies and strips callout tokens everywhere', () 
 	assert.deepEqual(texts('略過 [!note]、繼續朗讀。\n使用 `[!warning]` 範例。'), ['略過、繼續朗讀。', '使用 範例。']);
 });
 
+test('strips heading markers inside callouts and skips empty quote spacer lines', () => {
+	const markdown = [
+		'> [!danger] 注意事項',
+		'>',
+		'> # 一級標題',
+		'> ## 二級標題',
+		'> ### 三級標題',
+		'> #### 四級標題',
+		'> ##### 五級標題',
+		'> ###### 六級標題',
+		'>',
+		'> 內文。',
+	].join('\n');
+
+	assert.deepEqual(texts(markdown), [
+		'注意事項',
+		'一級標題',
+		'二級標題',
+		'三級標題',
+		'四級標題',
+		'五級標題',
+		'六級標題',
+		'內文。',
+	]);
+});
+
 test('removes known presentation tags, converts br, and preserves unknown or malformed HTML', () => {
 	assert.deepEqual(texts('<mark>重點</mark><br />下一段 <font color="red">紅字</font>'), ['重點 下一段 紅字']);
 	assert.deepEqual(texts('2 < 3 <Component>名稱</Component>'), ['2 < 3 <Component>名稱</Component>']);
