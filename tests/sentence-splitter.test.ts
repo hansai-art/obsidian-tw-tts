@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+	splitIntoSpeechSentences,
 	splitIntoSentences,
 	sentenceIndexForPrefix,
 } from '../src/sentence-splitter';
@@ -17,6 +18,47 @@ test('strips heading markers and treats heading as its own sentence', () => {
 		splitIntoSentences('# 標題\n\n內文一句。'),
 		['標題', '內文一句。'],
 	);
+});
+
+test('builds a natural speech plan with heading and paragraph pauses', () => {
+	const markdown = [
+		'# 標題',
+		'第一句。第二句。',
+		'',
+		'下一段。',
+		'> [!note] 提醒',
+		'> 內容。',
+		'最後一句。',
+	].join('\n');
+	assert.deepEqual(splitIntoSpeechSentences(markdown), [
+		{ text: '標題', pauseAfterMs: 600 },
+		{ text: '第一句。', pauseAfterMs: 0 },
+		{ text: '第二句。', pauseAfterMs: 400 },
+		{ text: '下一段。', pauseAfterMs: 0 },
+		{ text: '提醒', pauseAfterMs: 600 },
+		{ text: '內容。', pauseAfterMs: 0 },
+		{ text: '最後一句。', pauseAfterMs: 0 },
+	]);
+});
+
+test('pause settings can be disabled and the larger boundary wins', () => {
+	assert.deepEqual(
+		splitIntoSpeechSentences('# 標題\n\n正文。', {}, { paragraphPauseMs: 900, headingPauseMs: 600 }),
+		[
+			{ text: '標題', pauseAfterMs: 900 },
+			{ text: '正文。', pauseAfterMs: 0 },
+		],
+	);
+	assert.deepEqual(
+		splitIntoSpeechSentences('# 標題\n\n正文。', {}, { paragraphPauseMs: 0, headingPauseMs: 0 }),
+		[
+			{ text: '標題', pauseAfterMs: 0 },
+			{ text: '正文。', pauseAfterMs: 0 },
+		],
+	);
+	assert.deepEqual(splitIntoSpeechSentences('最後一句。\n'), [
+		{ text: '最後一句。', pauseAfterMs: 0 },
+	]);
 });
 
 test('strips inline bold, links and inline code', () => {

@@ -25,6 +25,9 @@ This file is the release gate for user-visible TTS changes. A version must not b
 8. Edge’s no-Key / local CLI limitation and Azure’s Key/Region, local-storage and billing boundary remain documented.
 9. Support diagnostics contain only plugin／Obsidian version, platform, provider, voice, rate, pitch, stage, stable error code and an app-generated safe summary. They must never include note text, Azure Key, Vault name, complete private paths or raw stderr.
 10. Environment checks exercise the selected provider without changing or persisting provider, voice, rate or pitch. FAQ content remains collapsed until the user opens a question.
+11. Paragraph and heading pauses use the same speech plan in system, Edge and Azure playback. Pausing, resuming, skipping, changing rate and stopping during a silent gap must remain deterministic.
+12. Empty blockquote lines and Markdown-only structural chunks never reach a provider. The last readable block has no trailing pause, so completion and folder auto-advance are not delayed.
+13. Task-state reading is opt-in. Folded Callout body reading defaults on for backward compatibility; when disabled, `[!type]-` keeps its custom title but skips its entire nested body.
 
 ## Release evidence
 
@@ -33,6 +36,8 @@ This file is the release gate for user-visible TTS changes. A version must not b
 - Callout/Highlightr fixture reaches Edge as consecutive clean sentences: no `[!type]`, fold marker, `mark`/`font` tag, attribute or color code; custom title and visible text remain, and playback reaches the prose after the Callout.
 - Literal HTML in inline code, escaped HTML, comparisons and unrelated tags remain intact; malformed presentation tags do not swallow trailing text.
 - Cursor start index and follow-along highlighting stay aligned after Callout headers are removed.
+- Callout fixtures cover headings 1–6, empty `>` paragraph spacers, lists/tasks, fenced code, math, footnotes, tables, nested folded bodies and the final provider guard.
+- Timing tests verify configurable heading/paragraph gaps in both Web Speech and audio-file providers, including pause/resume during a gap and immediate completion after the final block.
 - Azure API contract test verifies its official endpoint, Key header, SSML escaping and that the Key is never inserted into SSML or logs. A real Azure synthesis test requires the user's own Key and is recorded separately without exposing it.
 - Desktop Obsidian manual smoke test: system Chinese preview, system English preview, stop, Edge preview, Edge stop, and one full note playback.
 - Support smoke test: local readiness, Edge synthesis plus audio start, Azure missing-credential failure, selectable safe diagnostic handoff without programmatic clipboard access, both declarative and legacy settings rendering, and no runtime errors.

@@ -2,11 +2,22 @@ import {
 	parseReadableBlocks,
 	type MarkdownReaderOptions,
 } from './markdown-reader';
+import type { SpeechSentence } from './speech-plan';
 
 const FULL_TERMINATORS = '。！？；';
 const CLOSERS = new Set([
 	'」', '』', '）', '】', '》', '〉', '”', '’', '"', "'", ')', ']', '}',
 ]);
+
+export interface SpeechTimingOptions {
+	paragraphPauseMs: number;
+	headingPauseMs: number;
+}
+
+export const DEFAULT_SPEECH_TIMING_OPTIONS: SpeechTimingOptions = {
+	paragraphPauseMs: 400,
+	headingPauseMs: 600,
+};
 
 function isTerminator(char: string, next: string | undefined): boolean {
 	if (FULL_TERMINATORS.includes(char) || char === '!' || char === '?') return true;
@@ -55,6 +66,35 @@ function splitInternal(
 ): string[] {
 	return parseReadableBlocks(markdown, options, prefixMode)
 		.flatMap((block) => splitBlock(block.text));
+}
+
+export function splitIntoSpeechSentences(
+	markdown: string,
+	options?: Partial<MarkdownReaderOptions>,
+	timing?: Partial<SpeechTimingOptions>,
+): SpeechSentence[] {
+	const resolvedTiming: SpeechTimingOptions = {
+		paragraphPauseMs: Number.isFinite(timing?.paragraphPauseMs)
+			? Math.max(0, timing?.paragraphPauseMs ?? 0)
+			: DEFAULT_SPEECH_TIMING_OPTIONS.paragraphPauseMs,
+		headingPauseMs: Number.isFinite(timing?.headingPauseMs)
+			? Math.max(0, timing?.headingPauseMs ?? 0)
+			: DEFAULT_SPEECH_TIMING_OPTIONS.headingPauseMs,
+	};
+	const blocks = parseReadableBlocks(markdown, options, false);
+	return blocks.flatMap((block, blockIndex) => {
+		const sentences = splitBlock(block.text).map((text) => ({ text, pauseAfterMs: 0 }));
+		const last = sentences[sentences.length - 1];
+		// 停頓是兩個可讀區塊間的節奏；最後一塊不延遲完成事件或資料夾下一篇。
+		if (!last || blockIndex === blocks.length - 1) return sentences;
+		if (block.kind === 'heading' || block.kind === 'callout') {
+			last.pauseAfterMs = Math.max(last.pauseAfterMs, resolvedTiming.headingPauseMs);
+		}
+		if (block.paragraphBreakAfter) {
+			last.pauseAfterMs = Math.max(last.pauseAfterMs, resolvedTiming.paragraphPauseMs);
+		}
+		return sentences;
+	});
 }
 
 function cursorEndsAfterSkippedInlineMetadata(

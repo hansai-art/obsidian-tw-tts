@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-tw-tts",
-	"version": "0.14.0",
+	"version": "0.15.0",
 	"description": "Traditional-Chinese-first Obsidian read-aloud plugin with system, Edge CLI or Azure voices and sentence-by-sentence highlighting.",
 	"main": "main.js",
 	"scripts": {
@@ -8,7 +8,7 @@
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"typecheck": "tsc -noEmit -skipLibCheck",
 		"lint": "eslint src/",
-		"test": "NODE_NO_WARNINGS=1 tsx --tsconfig tsconfig.test.json --test tests/*.test.ts"
+		"test": "TSX_TSCONFIG_PATH=tsconfig.test.json node --import tsx --test tests/*.test.ts"
 	},
 	"keywords": [
 		"obsidian",

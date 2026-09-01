@@ -88,16 +88,26 @@ test('silent-symbols field is a single-line text input with the symbol hint', ()
 	assert.equal(tc.placeholder, STRINGS.settingSilentSymbolsPlaceholder);
 });
 
-test('content reading group exposes the three parser-option toggles', () => {
+test('content reading group exposes parser, timing, task and folded-callout options', () => {
 	const group = contentReadingGroupDef();
 	assert.equal(group.heading, STRINGS.contentReadingHeading);
 	const controls = group.items?.map((item) =>
 		(item as { control?: { key?: string; type?: string } }).control,
 	) ?? [];
 	assert.deepEqual(controls.map((control) => control?.key ?? null), [
-		'readStandaloneTags', 'readBareUrls', 'readMath',
+		'readStandaloneTags', 'readBareUrls', 'readMath', 'paragraphPauseMs',
+		'headingPauseMs', 'readTaskStatus', 'readFoldedCalloutContent',
 	]);
-	assert.ok(controls.every((control) => control?.type === 'toggle'));
+	assert.deepEqual(controls.map((control) => control?.type), [
+		'toggle', 'toggle', 'toggle', 'slider', 'slider', 'toggle', 'toggle',
+	]);
+	for (const index of [3, 4]) {
+		const slider = group.items?.[index] as { control?: { min?: number; max?: number; step?: number; displayFormat?: (value: number) => string } };
+		assert.equal(slider.control?.min, 0);
+		assert.equal(slider.control?.max, 1500);
+		assert.equal(slider.control?.step, 100);
+		assert.equal(slider.control?.displayFormat?.(600), '600 ms');
+	}
 });
 
 test('helpGroupDefs mirrors the tutorial steps and platform hints', () => {

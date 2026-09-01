@@ -24,8 +24,11 @@ Edge TTS 靠微軟免費雲端伺服器,2025-12 起常被擋(實測 403),fork �
 
 | 檔案 | 職責 | 依賴 Obsidian |
 |---|---|---|
-| `src/sentence-splitter.ts` | markdown/純文字 → 句子陣列;去除 markdown 語法符號,依中英文句末標點分句 | 否(純函數,單元測試) |
-| `src/tts-engine.ts` | 包 speechSynthesis:給句子陣列+voice+rate,依序唸,回呼 onSentenceStart / onDone / onError;pause/resume/stop/jumpTo | 否(純邏輯,注入 synth,單元測試) |
+| `src/markdown-reader.ts` | Obsidian Markdown → 可讀區塊；統一處理 Callout、標題、任務、表格、程式碼與內容選項 | 否(純函數,單元測試) |
+| `src/sentence-splitter.ts` | 可讀區塊 → 句子與段落／標題停頓計畫 | 否(純函數,單元測試) |
+| `src/speech-plan.ts` | 系統、Edge、Azure 共用的句子資料結構與最終 Markdown 結構防線 | 否(純函數,單元測試) |
+| `src/tts-engine.ts` | 包 speechSynthesis:依朗讀計畫逐句唸與停頓,回呼 onSentenceStart / onDone / onError;pause/resume/stop/jumpTo | 否(純邏輯,注入 synth,單元測試) |
+| `src/edge-tts.ts` | Edge CLI／Azure 共用的逐句音檔播放與停頓排程 | Edge CLI 部分是；播放核心否 |
 | `src/reader-view.ts` | 自訂 ItemView 獨立閱讀窗格:逐句渲染、目前句反白 + 自動捲動、控制列、點句跳讀 | 是 |
 | `src/settings.ts` | 全繁中設定頁:語音下拉、語速滑桿 | 是 |
 | `src/i18n/zh-tw.ts` | 集中的繁中介面字串 | 否 |
@@ -35,9 +38,9 @@ Edge TTS 靠微軟免費雲端伺服器,2025-12 起常被擋(實測 403),fork �
 
 1. 使用者按 ribbon / 狀態列鈕 / 命令面板「朗讀目前筆記」(或「朗讀選取文字」)。
 2. main 取當前筆記內容(或選取範圍)。
-3. `sentence-splitter` 切成句子陣列。
+3. `markdown-reader` 先轉成可讀區塊，`sentence-splitter` 再建立含停頓時間的朗讀計畫。
 4. 開 `reader-view` 顯示逐句列表。
-5. `tts-engine` 依序唸每句;每句 onstart 回呼。
+5. 選定的系統／Edge／Azure 引擎依序朗讀每句，並在句後執行段落或標題停頓；每句 onstart 回呼。
 6. reader-view 反白目前句 + 自動捲到可視範圍。
 7. 唸完清高亮。點某句可從那句重新開始唸。
 

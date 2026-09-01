@@ -157,6 +157,40 @@ export function contentReadingGroupDef(): SettingDefinitionGroup {
 				desc: STRINGS.settingReadMathDesc,
 				control: { type: 'toggle', key: 'readMath' },
 			},
+			{
+				name: STRINGS.settingParagraphPause,
+				desc: STRINGS.settingParagraphPauseDesc,
+				control: {
+					type: 'slider',
+					key: 'paragraphPauseMs',
+					min: 0,
+					max: 1500,
+					step: 100,
+					displayFormat: (value: number) => `${value} ms`,
+				},
+			},
+			{
+				name: STRINGS.settingHeadingPause,
+				desc: STRINGS.settingHeadingPauseDesc,
+				control: {
+					type: 'slider',
+					key: 'headingPauseMs',
+					min: 0,
+					max: 1500,
+					step: 100,
+					displayFormat: (value: number) => `${value} ms`,
+				},
+			},
+			{
+				name: STRINGS.settingReadTaskStatus,
+				desc: STRINGS.settingReadTaskStatusDesc,
+				control: { type: 'toggle', key: 'readTaskStatus' },
+			},
+			{
+				name: STRINGS.settingReadFoldedCalloutContent,
+				desc: STRINGS.settingReadFoldedCalloutContentDesc,
+				control: { type: 'toggle', key: 'readFoldedCalloutContent' },
+			},
 		],
 	};
 }

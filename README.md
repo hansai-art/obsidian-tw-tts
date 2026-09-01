@@ -8,6 +8,14 @@
 
 ## 中文
 
+### 0.15.0：自然朗讀體驗
+
+- 空白行會形成可調整的**段落停頓**（預設 400 ms），標題與 Callout 自訂標題後有較長的**標題停頓**（預設 600 ms）；兩者皆可設為 0。
+- Callout 內的一至六級標題、清單、任務、表格、程式碼、數學式與註腳，現在會先按原本的 Markdown 規則處理；`#`、`>` 與空白引用行不會送到語音引擎。
+- 可選擇朗讀任務狀態，例如「未完成」「已完成」「進行中」「已取消」「已排程」；預設關閉，維持只讀任務文字。
+- 可選擇是否朗讀 `[!type]-` 預設收合 Callout 的內文；關閉時仍保留自訂標題，展開型 `[!type]+` 不受影響。
+- 系統語音、Edge CLI 與 Azure 共用同一份朗讀節奏與安全過濾，避免純 Markdown 結構被送去合成而中斷。
+
 ### 功能
 
 - 一鍵朗讀目前筆記,或只朗讀選取的文字,或**從游標處開始唸**
@@ -66,7 +74,8 @@
 - **資料夾連播含子資料夾**:右鍵連播時是否也含子資料夾內的筆記(預設只該層)。
 - **發音字典**:一行一條「原文=唸法」(`#` 開頭為註解),校正破音字與專有名詞。例:`iPAS=愛帕斯`、`臺=台`。只改朗讀發音,畫面仍顯示原文。
 - **不朗讀的符號**:一行填完、用空白分隔,例:`○ ● ◎ ※`。這些符號送去朗讀前會被刪掉(否則 `○` 會被唸成「零」),畫面仍顯示原文。整行只有這類符號時會被安靜跳過。若同一個符號在發音字典裡另有指定唸法,以發音字典為準。
-- **內容朗讀**:可分別開啟「朗讀獨立標籤列」「朗讀網址」「朗讀數學式」。三項預設皆關閉；數學式開啟時只交付原始 MathJax／LaTeX，不會轉成自然語言。
+- **內容朗讀**:可分別開啟「朗讀獨立標籤列」「朗讀網址」「朗讀數學式」「朗讀任務狀態」，並控制是否朗讀預設收合的 Callout 內文。前三項與任務狀態預設關閉；折疊內容預設開啟以維持舊版行為。數學式開啟時只交付原始 MathJax／LaTeX，不會轉成自然語言。
+- **自然停頓**:段落停頓預設 400 ms，標題與 Callout 自訂標題停頓預設 600 ms；可各自調整為 0–1500 ms。筆記最後一句不會額外等待，資料夾連播可直接銜接下一篇。
 
 ### Edge 線上語音（桌面版）
 
@@ -96,7 +105,7 @@ Android 版固定切換為系統「隨選朗讀」模式。外掛會顯示啟用
 
 ### Callout 與 Highlightr
 
-桌機與 iPhone／iPad 的朗讀文字會略過 Obsidian Callout 的 `[!type]`／摺疊符號，以及 Highlightr 寫入的 `<mark>`／`<font>` 顯示標籤與色碼，只保留自訂標題及可見內文。這項相容性限於筆記原始 Markdown 中的 Callout 與上述標籤，不代表支援所有第三方外掛或所有 HTML。
+桌機與 iPhone／iPad 的朗讀文字會略過 Obsidian Callout 的 `[!type]`／摺疊符號，以及 Highlightr 寫入的 `<mark>`／`<font>` 顯示標籤與色碼，只保留自訂標題及可見內文。Callout 內的標題、清單、任務、表格、程式碼、數學式與註腳會套用與正文相同的 Markdown 清理；單獨用來換段的 `>` 只形成段落停頓，不會建立空語音。設定可略過 `[!type]-` 的收合內文，但仍朗讀其自訂標題。這項相容性限於筆記原始 Markdown 中的 Callout 與上述標籤，不代表支援所有第三方外掛或所有 HTML。
 
 ### 自動略過 Obsidian 語法
 
@@ -170,6 +179,8 @@ A Traditional-Chinese-first read-aloud and folder-playback plugin. The default s
 - Custom pronunciation rules and silent-symbol filtering across all three providers
 - Callout and Highlightr markup cleanup
 - Shared Markdown/Obsidian cleanup for block IDs, comments, footnotes, embeds and fenced code, with optional standalone-tag, bare-URL and raw-math reading
+- Configurable paragraph and heading pauses shared by system, Edge and Azure playback
+- Optional semantic task-state reading and optional skipping of default-collapsed Callout bodies
 - Privacy-safe environment diagnostics that exclude note text, credentials, vault names, and full private paths
 - Traditional Chinese interface
 
@@ -185,7 +196,7 @@ A Traditional-Chinese-first read-aloud and folder-playback plugin. The default s
 
 Read the current note via the ribbon speaker icon, the status-bar "🔊 朗讀" button, or the command "朗讀目前筆記". Select text and run "朗讀選取文字" to read only the selection, or "從游標處開始唸" to start from the sentence at your cursor. Right-click a folder → "朗讀此資料夾" to play every note in it back-to-back. The reader pane opens on the right, highlights each sentence as it is read (with the note title + position when playing a folder), and click any sentence to start from there. "停止朗讀" stops playback.
 
-Settings let you choose from Chinese and English system voices (quality-ranked Chinese voices come first), adjust/reset/preview speed and pitch, toggle auto-advance to the next note, choose whether folder playback recurses into subfolders, define a **pronunciation dictionary** (one `原文=唸法` rule per line), and list **silent symbols** (for example `○ ● ◎ ※`) that are removed before speaking. The same pronunciation and symbol rules apply to system, Edge, and Azure providers. The reader pane also has a live speed control (− [1.0x] +).
+Settings let you choose from Chinese and English system voices (quality-ranked Chinese voices come first), adjust/reset/preview speed and pitch, set paragraph and heading pauses from 0–1500 ms, optionally read semantic task states, optionally skip default-collapsed Callout bodies, toggle auto-advance to the next note, choose whether folder playback recurses into subfolders, define a **pronunciation dictionary** (one `原文=唸法` rule per line), and list **silent symbols** (for example `○ ● ◎ ※`) that are removed before speaking. The same timing, pronunciation, symbol and structural-safety rules apply to system, Edge, and Azure providers. The reader pane also has a live speed control (− [1.0x] +).
 
 ### Platform support
 

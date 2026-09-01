@@ -7,6 +7,11 @@ import {
 	type TtsSynth,
 } from '../src/tts-engine';
 
+// Obsidian 提供 Window timers；Node 單元測試用同一個 timer API 形狀補齊環境。
+if (typeof window === 'undefined') {
+	Object.defineProperty(globalThis, 'window', { value: globalThis, configurable: true });
+}
+
 /** 可手動觸發事件的假 speechSynthesis,用來測試排序邏輯。 */
 class MockSynth implements TtsSynth {
 	spoken: TtsUtterance[] = [];
@@ -71,6 +76,34 @@ test('onend advances to the next sentence', () => {
 	synth.fireEnd(0);
 	assert.equal(synth.last().text, '乙');
 	assert.equal(engine.currentIndex, 1);
+});
+
+test('honours a planned silent pause before speaking the next sentence', async () => {
+	const { synth, engine } = setup();
+	engine.start([
+		{ text: '標題', pauseAfterMs: 20 },
+		{ text: '正文', pauseAfterMs: 0 },
+	]);
+	synth.fireEnd(0);
+	assert.equal(synth.spoken.length, 1);
+	await new Promise((resolve) => setTimeout(resolve, 35));
+	assert.equal(synth.spoken.length, 2);
+	assert.equal(synth.last().text, '正文');
+});
+
+test('pause during a planned gap defers advancement until resume', async () => {
+	const { synth, engine } = setup();
+	engine.start([
+		{ text: '第一句', pauseAfterMs: 10 },
+		{ text: '第二句', pauseAfterMs: 0 },
+	]);
+	synth.fireEnd(0);
+	engine.pause();
+	await new Promise((resolve) => setTimeout(resolve, 20));
+	assert.equal(synth.spoken.length, 1);
+	engine.resume();
+	assert.equal(synth.spoken.length, 2);
+	assert.equal(synth.last().text, '第二句');
 });
 
 test('finishing the last sentence calls onDone and stops', () => {
@@ -259,4 +292,14 @@ test('all-blank sentences report no readable content instead of stalling', () =>
 	assert.equal(synth.spoken.length, 0);
 	assert.deepEqual(errors, ['沒有可朗讀的內容']);
 	assert.equal(engine.isPlaying, false);
+});
+
+test('final provider guard skips Markdown-only structural chunks', () => {
+	const started: number[] = [];
+	const { synth, engine } = setup({ onSentenceStart: (index: number) => started.push(index) });
+	engine.start(['>', '#####', '---', '| --- |', '可朗讀內容']);
+	assert.equal(synth.spoken.length, 1);
+	assert.equal(synth.last().text, '可朗讀內容');
+	synth.fireStart(0);
+	assert.deepEqual(started, [4]);
 });
