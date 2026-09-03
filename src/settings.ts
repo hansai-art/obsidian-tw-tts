@@ -12,9 +12,9 @@ import {
 	type SliderComponent,
 } from 'obsidian';
 import type TwTtsPlugin from './main';
-import { STRINGS } from './i18n/zh-tw';
+import { setLocale, STRINGS } from './i18n';
 import { availableVoices, pickVoice, regionLabel } from './voice-catalog';
-import { contentReadingGroupDef, coreSettingDefs, helpGroupDefs } from './setting-defs';
+import { advancedReadingGroupDef, contentReadingGroupDef, coreSettingDefs, helpGroupDefs, interfaceLanguageDef } from './setting-defs';
 import { playbackError } from './playback-error';
 import { semitonesToSpeechPitch } from './tts-engine';
 import { createEdgeAudio, edgeFailureMessage, EdgeCliSpeechClient, type EdgeAudio } from './edge-tts';
@@ -38,6 +38,8 @@ import {
 	type SupportCheckStage,
 	type SupportDiagnostic,
 } from './support-diagnostics';
+import type { PlaybackBookmarks } from './playback-progress';
+import { exportRuleConfig, parseRuleConfig } from './rule-config';
 
 interface SupportCheckOutcome {
 	passed: boolean;
@@ -79,6 +81,19 @@ export interface TwTtsSettings {
 	readTaskStatus: boolean;
 	/** 是否朗讀預設收合（[!type]-）Callout 的內文。 */
 	readFoldedCalloutContent: boolean;
+	/** 快轉／倒退秒數；實際定位於句界。 */
+	seekSeconds: number;
+	/** 各筆記最後朗讀位置，不含筆記內容。 */
+	playbackBookmarks: PlaybackBookmarks;
+	/** 線上語音 MP3 快取上限，MB。 */
+	audioCacheMb: number;
+	builtinAiTerms: boolean;
+	builtinMarkdownSymbols: boolean;
+	builtinMixedText: boolean;
+	naturalizeMath: boolean;
+	naturalizeTables: boolean;
+	keyPointsOnly: boolean;
+	interfaceLanguage: 'zh-TW' | 'en';
 }
 
 export const DEFAULT_SETTINGS: TwTtsSettings = {
@@ -101,6 +116,16 @@ export const DEFAULT_SETTINGS: TwTtsSettings = {
 	headingPauseMs: 600,
 	readTaskStatus: false,
 	readFoldedCalloutContent: true,
+	seekSeconds: 15,
+	playbackBookmarks: {},
+	audioCacheMb: 200,
+	builtinAiTerms: true,
+	builtinMarkdownSymbols: true,
+	builtinMixedText: true,
+	naturalizeMath: true,
+	naturalizeTables: true,
+	keyPointsOnly: false,
+	interfaceLanguage: 'zh-TW',
 };
 
 export class TwTtsSettingTab extends PluginSettingTab {
@@ -132,7 +157,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		}
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];
-		const [providerDef, edgeVoiceDef, , azureRegionDef, azureVoiceDef, voiceDef, rateDef, pitchDef, autoNextDef, folderDef, pronDef, silentDef] =
+		const [providerDef, edgeVoiceDef, , azureRegionDef, azureVoiceDef, voiceDef, rateDef, pitchDef, autoNextDef, folderDef, seekDef, cacheDef, pronDef, silentDef] =
 			coreSettingDefs(voices);
 
 		const resetAction: SettingDefinitionAction = {
@@ -163,9 +188,8 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			render: (setting) => {
 				setting.addText((tc) => {
 					tc.inputEl.type = 'password';
-					tc.setPlaceholder(STRINGS.settingAzureKeyPlaceholder).setValue(this.plugin.settings.azureKey).onChange((value) => {
-						this.plugin.settings.azureKey = value.trim();
-						void this.plugin.saveSettings();
+					tc.setPlaceholder(STRINGS.settingAzureKeyPlaceholder).setValue(this.plugin.getAzureKey()).onChange((value) => {
+						void this.plugin.setAzureKey(value);
 					});
 				});
 			},
@@ -185,8 +209,22 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			name: STRINGS.supportFaqHeading,
 			render: (setting) => this.renderSupportFaq(setting),
 		};
+		const clearCacheAction: SettingDefinitionAction = {
+			name: STRINGS.clearAudioCache,
+			action: () => void this.plugin.clearAudioCache().then(() => new Notice(STRINGS.audioCacheCleared)),
+		};
+		const ruleTransfer: SettingDefinitionRender = {
+			name: STRINGS.ruleConfigName,
+			desc: STRINGS.ruleConfigDesc,
+			render: (setting) => {
+				setting
+					.addButton((button) => button.setButtonText(STRINGS.exportRuleConfig).onClick(() => this.downloadRuleConfig()))
+					.addButton((button) => button.setButtonText(STRINGS.importRuleConfig).onClick(() => this.chooseRuleConfig()));
+			},
+		};
 
 		return [
+			interfaceLanguageDef(),
 			previewControls,
 			providerDef,
 			...(shouldUseEdgeProvider(this.plugin.settings.provider, Platform.isDesktopApp)
@@ -204,9 +242,14 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			resetPitchAction,
 			autoNextDef,
 			folderDef,
+			seekDef,
+			cacheDef,
+			clearCacheAction,
 			pronDef,
 			silentDef,
 			contentReadingGroupDef(),
+			advancedReadingGroupDef(),
+			ruleTransfer,
 			supportControls,
 			supportFaq,
 			...helpGroupDefs(),
@@ -222,7 +265,10 @@ export class TwTtsSettingTab extends PluginSettingTab {
 	async setControlValue(key: string, value: unknown): Promise<void> {
 		(this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
 		await this.plugin.saveSettings();
-		if (key === 'provider') (this as unknown as { update?: () => void }).update?.();
+		if (key === 'interfaceLanguage') setLocale(this.plugin.settings.interfaceLanguage);
+		if (key === 'provider' || key === 'interfaceLanguage') {
+			(this as unknown as { update?: () => void }).update?.();
+		}
 		if (shouldAutoPreviewOnSettingChange(key, this.plugin.settings.provider, Platform.isDesktopApp)) {
 			this.preview();
 		}
@@ -243,6 +289,39 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		(this as unknown as { update?: () => void }).update?.();
 	}
 
+	private downloadRuleConfig(): void {
+		const content = exportRuleConfig(this.plugin.settings);
+		const url = URL.createObjectURL(new Blob([content], { type: 'application/json' }));
+		const anchor = document.body.createEl('a');
+		anchor.href = url;
+		anchor.download = 'hans-tw-tts-rules.json';
+		anchor.click();
+		anchor.remove();
+		URL.revokeObjectURL(url);
+	}
+
+	private chooseRuleConfig(): void {
+		const input = document.body.createEl('input');
+		input.type = 'file';
+		input.accept = 'application/json,.json';
+		input.addEventListener('change', () => {
+			const file = input.files?.[0];
+			if (!file) return;
+			void file.text().then(async (raw) => {
+				const config = parseRuleConfig(raw);
+				Object.assign(this.plugin.settings, config);
+				await this.plugin.saveSettings();
+				new Notice(STRINGS.ruleConfigImported);
+				(this as unknown as { update?: () => void }).update?.();
+			}).catch((error: unknown) => {
+				new Notice(error instanceof Error ? error.message : STRINGS.ruleConfigImportFailed);
+			}).finally(() => {
+				input.remove();
+			});
+		});
+		input.click();
+	}
+
 	display(): void {
 		this.renderLegacySettings();
 	}
@@ -260,6 +339,20 @@ export class TwTtsSettingTab extends PluginSettingTab {
 
 		const synth = window.speechSynthesis;
 		const voices = synth ? availableVoices(synth.getVoices()) : [];
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingInterfaceLanguage)
+			.setDesc(STRINGS.settingInterfaceLanguageDesc)
+			.addDropdown((dropdown) => dropdown
+				.addOption('zh-TW', STRINGS.interfaceZhTw)
+				.addOption('en', STRINGS.interfaceEnglish)
+				.setValue(this.plugin.settings.interfaceLanguage)
+				.onChange(async (value) => {
+					this.plugin.settings.interfaceLanguage = value as 'zh-TW' | 'en';
+					setLocale(this.plugin.settings.interfaceLanguage);
+					await this.plugin.saveSettings();
+					this.renderLegacySettings();
+				}));
 
 		new Setting(containerEl)
 			.setName(STRINGS.previewHeading)
@@ -309,9 +402,8 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				.setDesc(STRINGS.settingAzureKeyDesc)
 				.addText((tc) => {
 					tc.inputEl.type = 'password';
-					tc.setPlaceholder(STRINGS.settingAzureKeyPlaceholder).setValue(this.plugin.settings.azureKey).onChange(async (val) => {
-						this.plugin.settings.azureKey = val.trim();
-						await this.plugin.saveSettings();
+					tc.setPlaceholder(STRINGS.settingAzureKeyPlaceholder).setValue(this.plugin.getAzureKey()).onChange(async (val) => {
+						await this.plugin.setAzureKey(val);
 					});
 				});
 			new Setting(containerEl)
@@ -425,6 +517,34 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
+			.setName(STRINGS.settingSeekSeconds)
+			.setDesc(STRINGS.settingSeekSecondsDesc)
+			.addSlider((slider) => slider
+				.setLimits(5, 60, 5)
+				.setValue(this.plugin.settings.seekSeconds)
+				.onChange(async (value) => {
+					this.plugin.settings.seekSeconds = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName(STRINGS.settingAudioCache)
+			.setDesc(STRINGS.settingAudioCacheDesc)
+			.addSlider((slider) => slider
+				.setLimits(0, 1000, 50)
+				.setValue(this.plugin.settings.audioCacheMb)
+				.onChange(async (value) => {
+					this.plugin.settings.audioCacheMb = value;
+					await this.plugin.saveSettings();
+				}))
+			.addButton((button) => button
+				.setButtonText(STRINGS.clearAudioCacheButton)
+				.onClick(async () => {
+					await this.plugin.clearAudioCache();
+					new Notice(STRINGS.audioCacheCleared);
+				}));
+
+		new Setting(containerEl)
 			.setName(STRINGS.settingPronunciation)
 			.setDesc(STRINGS.settingPronunciationDesc)
 			.addTextArea((ta) => {
@@ -449,6 +569,31 @@ export class TwTtsSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+		new Setting(containerEl).setName(STRINGS.advancedReadingHeading).setHeading();
+		for (const [key, name, desc] of [
+			['builtinAiTerms', STRINGS.settingBuiltinAiTerms, STRINGS.settingBuiltinAiTermsDesc],
+			['builtinMarkdownSymbols', STRINGS.settingBuiltinMarkdownSymbols, STRINGS.settingBuiltinMarkdownSymbolsDesc],
+			['builtinMixedText', STRINGS.settingBuiltinMixedText, STRINGS.settingBuiltinMixedTextDesc],
+			['naturalizeMath', STRINGS.settingNaturalizeMath, STRINGS.settingNaturalizeMathDesc],
+			['naturalizeTables', STRINGS.settingNaturalizeTables, STRINGS.settingNaturalizeTablesDesc],
+			['keyPointsOnly', STRINGS.settingKeyPointsOnly, STRINGS.settingKeyPointsOnlyDesc],
+		] as const) {
+			new Setting(containerEl)
+				.setName(name)
+				.setDesc(desc)
+				.addToggle((toggle) => toggle
+					.setValue(this.plugin.settings[key])
+					.onChange(async (value) => {
+						this.plugin.settings[key] = value;
+						await this.plugin.saveSettings();
+					}));
+		}
+		new Setting(containerEl)
+			.setName(STRINGS.ruleConfigName)
+			.setDesc(STRINGS.ruleConfigDesc)
+			.addButton((button) => button.setButtonText(STRINGS.exportRuleConfig).onClick(() => this.downloadRuleConfig()))
+			.addButton((button) => button.setButtonText(STRINGS.importRuleConfig).onClick(() => this.chooseRuleConfig()));
 
 		new Setting(containerEl).setName(STRINGS.contentReadingHeading).setHeading();
 		new Setting(containerEl)
@@ -538,7 +683,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 		const synth = window.speechSynthesis;
 		return (synth ? pickVoice(synth.getVoices(), this.plugin.settings.voiceName)?.name : null)
 			?? this.plugin.settings.voiceName
-			?? '自動';
+			?? STRINGS.automaticVoice;
 	}
 
 	private makeSupportDiagnostic(
@@ -635,7 +780,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 				outcome = { passed: false, stage: 'local-api', message: error?.title ?? STRINGS.previewNoVoice };
 			} else {
 				this.preview();
-				outcome = { passed: true, stage: 'local-api', message: '已偵測到系統語音 API 與指定語音，試聽已啟動。' };
+				outcome = { passed: true, stage: 'local-api', message: STRINGS.localCheckSucceeded };
 			}
 		}
 
@@ -756,7 +901,7 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			return { passed: false, stage: 'edge-cli', message: safeMessage };
 		}
 		if (generation !== this.previewGeneration) {
-			return { passed: false, stage: 'edge-cli', message: 'Edge 環境檢查已取消。' };
+			return { passed: false, stage: 'edge-cli', message: STRINGS.edgeCheckCancelled };
 		}
 		try {
 			const audio = createEdgeAudio(blob);
@@ -764,13 +909,13 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			audio.onEnded = () => this.releaseEdgePreview(audio);
 			audio.onError = () => {
 				this.releaseEdgePreview(audio);
-				if (showNotice) new Notice('Edge 語音試聽播放失敗。');
+				if (showNotice) new Notice(STRINGS.edgePreviewFailed);
 			};
 			await audio.play();
-			return { passed: true, stage: 'audio-playback', message: 'Edge CLI 合成成功，指定語音的音訊播放已啟動。' };
+			return { passed: true, stage: 'audio-playback', message: STRINGS.edgeCheckSucceeded };
 		} catch {
 			if (this.edgePreviewAudio) this.releaseEdgePreview(this.edgePreviewAudio);
-			const message = 'Edge 語音已產生，但試聽音訊無法播放。請確認系統輸出裝置後重試。';
+			const message = STRINGS.edgeAudioFailed;
 			if (generation === this.previewGeneration) {
 				if (showNotice) new Notice(message, 8000);
 			}
@@ -785,28 +930,28 @@ export class TwTtsSettingTab extends PluginSettingTab {
 			const voice = this.plugin.settings.azureVoice;
 			const sample = previewLanguage(voice) === 'en' ? STRINGS.previewSampleEnglish : STRINGS.previewSample;
 			const blob = await new ObsidianAzureSpeechClient({
-				key: this.plugin.settings.azureKey,
+				key: this.plugin.getAzureKey(),
 				region: this.plugin.settings.azureRegion,
 			}).synthesize(sample, { voice, rate: this.plugin.settings.rate, pitch: this.plugin.settings.pitch });
 			if (generation !== this.previewGeneration) {
-				return { passed: false, stage: 'azure-api', message: 'Azure 環境檢查已取消。' };
+				return { passed: false, stage: 'azure-api', message: STRINGS.azureCheckCancelled };
 			}
 			const audio = createEdgeAudio(blob);
 			this.edgePreviewAudio = audio;
 			audio.onEnded = () => this.releaseEdgePreview(audio);
 			audio.onError = () => {
 				this.releaseEdgePreview(audio);
-				if (showNotice) new Notice('Azure 語音試聽播放失敗。');
+				if (showNotice) new Notice(STRINGS.azurePreviewFailed);
 			};
 			await audio.play();
-			return { passed: true, stage: 'audio-playback', message: 'Azure Speech 合成成功，指定語音的音訊播放已啟動。' };
+			return { passed: true, stage: 'audio-playback', message: STRINGS.azureCheckSucceeded };
 		} catch (error) {
 			if (this.edgePreviewAudio) this.releaseEdgePreview(this.edgePreviewAudio);
 			if (generation !== this.previewGeneration) {
-				return { passed: false, stage: 'azure-api', message: 'Azure 環境檢查已取消。' };
+				return { passed: false, stage: 'azure-api', message: STRINGS.azureCheckCancelled };
 			}
 			const message = safeAzureFailureMessage(error);
-			if (showNotice) new Notice(`Azure 語音試聽失敗：${message}`, 10000);
+			if (showNotice) new Notice(STRINGS.azurePreviewError(message), 10000);
 			return { passed: false, stage: 'azure-api', message };
 		}
 	}

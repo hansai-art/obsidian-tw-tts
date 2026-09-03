@@ -23,3 +23,13 @@ export function isSpeakableText(text: string): boolean {
 	if (!trimmed) return false;
 	return !/^(?:>+|#{1,6}|`{3,}|~{3,}|(?:[-*_]\s*){3,}|\|[\s|:-]*\|?)$/.test(trimmed);
 }
+
+export function prepareSpokenSentences(
+	sentences: readonly SpeechSentence[],
+	transform: (text: string) => string,
+): SpeechSentence[] {
+	return sentences.map((sentence) => {
+		const transformed = transform(sentence.text);
+		return { ...sentence, text: isSpeakableText(transformed) ? transformed : '' };
+	});
+}

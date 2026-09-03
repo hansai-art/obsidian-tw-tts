@@ -14,7 +14,7 @@ import type {
 	SettingDefinitionGroup,
 } from 'obsidian';
 import { regionLabel } from './voice-catalog';
-import { STRINGS } from './i18n/zh-tw';
+import { STRINGS } from './i18n';
 import { cloudVoiceOptions } from './cloud-voice-catalog';
 
 /** 語音下拉需要的最小欄位(方便測試,不必造完整 SpeechSynthesisVoice)。 */
@@ -115,6 +115,16 @@ export function coreSettingDefs(voices: VoiceLike[]): SettingDefinitionControl[]
 			control: { type: 'toggle', key: 'folderQueueRecursive' },
 		},
 		{
+			name: STRINGS.settingSeekSeconds,
+			desc: STRINGS.settingSeekSecondsDesc,
+			control: { type: 'slider', key: 'seekSeconds', min: 5, max: 60, step: 5, displayFormat: STRINGS.secondsValue },
+		},
+		{
+			name: STRINGS.settingAudioCache,
+			desc: STRINGS.settingAudioCacheDesc,
+			control: { type: 'slider', key: 'audioCacheMb', min: 0, max: 1000, step: 50, displayFormat: (v: number) => `${v} MB` },
+		},
+		{
 			name: STRINGS.settingPronunciation,
 			desc: STRINGS.settingPronunciationDesc,
 			control: {
@@ -192,6 +202,33 @@ export function contentReadingGroupDef(): SettingDefinitionGroup {
 				control: { type: 'toggle', key: 'readFoldedCalloutContent' },
 			},
 		],
+	};
+}
+
+export function advancedReadingGroupDef(): SettingDefinitionGroup {
+	return {
+		type: 'group',
+		heading: STRINGS.advancedReadingHeading,
+		items: [
+			{ name: STRINGS.settingBuiltinAiTerms, desc: STRINGS.settingBuiltinAiTermsDesc, control: { type: 'toggle', key: 'builtinAiTerms' } },
+			{ name: STRINGS.settingBuiltinMarkdownSymbols, desc: STRINGS.settingBuiltinMarkdownSymbolsDesc, control: { type: 'toggle', key: 'builtinMarkdownSymbols' } },
+			{ name: STRINGS.settingBuiltinMixedText, desc: STRINGS.settingBuiltinMixedTextDesc, control: { type: 'toggle', key: 'builtinMixedText' } },
+			{ name: STRINGS.settingNaturalizeMath, desc: STRINGS.settingNaturalizeMathDesc, control: { type: 'toggle', key: 'naturalizeMath' } },
+			{ name: STRINGS.settingNaturalizeTables, desc: STRINGS.settingNaturalizeTablesDesc, control: { type: 'toggle', key: 'naturalizeTables' } },
+			{ name: STRINGS.settingKeyPointsOnly, desc: STRINGS.settingKeyPointsOnlyDesc, control: { type: 'toggle', key: 'keyPointsOnly' } },
+		],
+	};
+}
+
+export function interfaceLanguageDef(): SettingDefinitionControl {
+	return {
+		name: STRINGS.settingInterfaceLanguage,
+		desc: STRINGS.settingInterfaceLanguageDesc,
+		control: {
+			type: 'dropdown',
+			key: 'interfaceLanguage',
+			options: { 'zh-TW': STRINGS.interfaceZhTw, en: STRINGS.interfaceEnglish },
+		},
 	};
 }
 

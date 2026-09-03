@@ -5,6 +5,8 @@ import {
 	coreSettingDefs,
 	helpGroupDefs,
 	contentReadingGroupDef,
+	advancedReadingGroupDef,
+	interfaceLanguageDef,
 } from '../src/setting-defs';
 import { STRINGS } from '../src/i18n/zh-tw';
 
@@ -24,10 +26,10 @@ test('voiceDropdownOptions labels each voice with its region', () => {
 
 test('coreSettingDefs exposes provider, curated cloud voice and Azure controls in display order', () => {
 	const defs = coreSettingDefs([]);
-	assert.equal(defs.length, 12);
+	assert.equal(defs.length, 14);
 	assert.deepEqual(
 		defs.map((d) => d.control.type),
-		['dropdown', 'dropdown', 'text', 'text', 'dropdown', 'dropdown', 'slider', 'slider', 'toggle', 'toggle', 'textarea', 'text'],
+		['dropdown', 'dropdown', 'text', 'text', 'dropdown', 'dropdown', 'slider', 'slider', 'toggle', 'toggle', 'slider', 'slider', 'textarea', 'text'],
 	);
 });
 
@@ -47,6 +49,8 @@ test('coreSettingDefs keys match the TwTtsSettings fields exactly', () => {
 			'pitch',
 			'autoNextInFolder',
 			'folderQueueRecursive',
+			'seekSeconds',
+			'audioCacheMb',
 			'pronunciationRules',
 			'silentSymbols',
 		],
@@ -73,7 +77,7 @@ test('slider def carries the 0.5-2.0 range and a 1-decimal formatter', () => {
 });
 
 test('pronunciation textarea keeps its placeholder and 6 rows', () => {
-	const ta = coreSettingDefs([])[10].control;
+	const ta = coreSettingDefs([])[12].control;
 	assert.equal(ta.type, 'textarea');
 	if (ta.type !== 'textarea') return;
 	assert.equal(ta.rows, 6);
@@ -81,7 +85,7 @@ test('pronunciation textarea keeps its placeholder and 6 rows', () => {
 });
 
 test('silent-symbols field is a single-line text input with the symbol hint', () => {
-	const tc = coreSettingDefs([])[11].control;
+	const tc = coreSettingDefs([])[13].control;
 	assert.equal(tc.type, 'text');
 	if (tc.type !== 'text') return;
 	assert.equal(tc.key, 'silentSymbols');
@@ -108,6 +112,24 @@ test('content reading group exposes parser, timing, task and folded-callout opti
 		assert.equal(slider.control?.step, 100);
 		assert.equal(slider.control?.displayFormat?.(600), '600 ms');
 	}
+});
+
+test('advanced reading group exposes all Taiwanese optimization switches', () => {
+	const group = advancedReadingGroupDef();
+	const keys = group.items?.map((item) =>
+		(item as { control?: { key?: string } }).control?.key,
+	) ?? [];
+	assert.deepEqual(keys, [
+		'builtinAiTerms', 'builtinMarkdownSymbols', 'builtinMixedText',
+		'naturalizeMath', 'naturalizeTables', 'keyPointsOnly',
+	]);
+});
+
+test('interface language control offers Traditional Chinese and English', () => {
+	const control = interfaceLanguageDef().control;
+	assert.equal(control.type, 'dropdown');
+	if (control.type !== 'dropdown') return;
+	assert.deepEqual(Object.keys(control.options), ['zh-TW', 'en']);
 });
 
 test('helpGroupDefs mirrors the tutorial steps and platform hints', () => {

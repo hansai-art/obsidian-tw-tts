@@ -8,6 +8,14 @@
 
 ## 中文
 
+### 0.18.0：通勤播放、安全快取與繁中自然朗讀
+
+- 支援續讀書籤、句級進度與跳轉、鍵盤控制，以及 Media Session 播放控制。
+- Edge CLI 與 Azure 語音加入句級音訊快取；可清除快取，並可將單篇筆記匯出為 MP3。
+- Azure Speech Key 改存於 Obsidian SecretStorage，不再寫入外掛的一般設定資料。
+- 可選擇自然化朗讀數學式、表格與中英混排內容，或只朗讀標題與粗體重點。
+- 支援匯入與匯出繁中朗讀規則 JSON，並提供繁中與英文介面。
+
 ### 0.15.0：自然朗讀體驗
 
 - 空白行會形成可調整的**段落停頓**（預設 400 ms），標題與 Callout 自訂標題後有較長的**標題停頓**（預設 600 ms）；兩者皆可設為 0。
@@ -119,7 +127,7 @@ Hans TW TTS 在切句與交給任何語音引擎前，會先用同一套內容�
 
 選擇「**Azure Speech API（自己的 Key）**」後，設定頁會顯示三個欄位：`Azure Speech Key`、`Azure Region` 與精選語音。這是 Microsoft 官方 API，不依賴本機 Python CLI；目前供桌機與 iPhone／iPad 使用。Android 版依產品策略固定切換為系統「隨選朗讀」。
 
-- Key 只存於該 Vault 的外掛資料檔，**未加密**；絕不可貼到筆記、截圖、Issue 或 Git。
+- Key 存於 Obsidian SecretStorage，不會寫入外掛的一般設定資料；仍不可貼到筆記、截圖、Issue 或 Git。
 - Key 與 Region 必須來自同一個 Azure Speech 資源，例如 `Eastasia`。
 - Azure 免費額度、是否要求付款方式驗證、超額費用與可用額度依帳戶／地區而異；啟用前請在 Azure 設定 Budget／Cost Alert，勿假設無條件免費。
 - 朗讀窗格仍會逐句產生、播放、反白並依序接續下一句；資料夾連播與發音字典同樣適用。
@@ -166,6 +174,14 @@ MIT。原創程式碼,不衍生自任何 AGPL 專案。
 ## English
 
 A Traditional-Chinese-first read-aloud and folder-playback plugin. The default system voice is free and offline; desktop users can switch to the no-key Edge CLI, or use their own Azure Speech Key. It also supports sentence highlighting, cursor start, pronunciation rules, silent symbols, and Callout/Highlightr cleanup. Note text is sent to Microsoft only when an online provider is selected.
+
+### 0.18.0 highlights
+
+- Resume bookmarks, sentence-level progress and seeking, keyboard controls, and Media Session controls.
+- Sentence audio caching for Edge CLI and Azure, cache cleanup, and single-note MP3 export.
+- Azure Speech keys are stored in Obsidian SecretStorage rather than regular plugin settings.
+- Optional natural reading for math, tables, and mixed Chinese-English content, plus a key-points-only mode.
+- Import and export Traditional Chinese reading rules as JSON, with Traditional Chinese and English interfaces.
 
 ### Features
 

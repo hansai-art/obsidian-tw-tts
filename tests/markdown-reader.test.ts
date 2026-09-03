@@ -15,6 +15,9 @@ test('exports conservative parser defaults', () => {
 		readMath: false,
 		readTaskStatus: false,
 		readFoldedCalloutContent: true,
+		naturalizeMath: false,
+		naturalizeTables: false,
+		keyPointsOnly: false,
 	});
 });
 

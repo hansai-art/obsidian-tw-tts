@@ -35,6 +35,34 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
+.tw-tts-progress {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 14px;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.tw-tts-progress input {
+	flex: 1;
+}
+
+.tw-tts-resume {
+	margin: 16px 8px;
+	padding: 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+}
+
+.tw-tts-resume-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 12px;
+}
+
 .tw-tts-btn {
 	display: inline-flex;
 	align-items: center;

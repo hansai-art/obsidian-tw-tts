@@ -7,7 +7,7 @@ import {
 	setIcon,
 } from 'obsidian';
 import type TwTtsPlugin from './main';
-import { STRINGS } from './i18n/zh-tw';
+import { STRINGS } from './i18n';
 import {
 	semitonesToSpeechPitch,
 	TtsEngine,
@@ -17,12 +17,7 @@ import {
 import { pickVoice } from './voice-catalog';
 import { splitIntoSpeechSentences } from './sentence-splitter';
 import type { SpeechSentence } from './speech-plan';
-import {
-	applyPronunciation,
-	parseRules,
-	parseSilentSymbols,
-	type PronunciationRule,
-} from './pronunciation';
+
 import { playbackError, type ActionableError } from './playback-error';
 import { shouldUseAzureProvider, shouldUseEdgeProvider } from './provider-policy';
 import {
@@ -31,6 +26,13 @@ import {
 	EdgeTtsEngine,
 } from './edge-tts';
 import { ObsidianAzureSpeechClient } from './azure-obsidian';
+import { estimatedPlanProgress, progressPercent, resumableIndex, seekSentenceIndex, speechPlanFingerprint } from './playback-progress';
+import {
+	configureMediaSession,
+	updateMediaProgress,
+	type MediaMetadataConstructor,
+	type MediaSessionLike,
+} from './media-session';
 
 export const VIEW_TYPE_TW_TTS = 'tw-read-aloud-view';
 
@@ -40,6 +42,8 @@ interface ResolvedVoice {
 }
 
 interface PlaybackEngine {
+	readonly currentIndex: number;
+	readonly total: number;
 	start(sentences: SpeechSentence[], fromIndex?: number): void;
 	setRate(rate: number): void;
 	pause(): void;
@@ -60,15 +64,18 @@ export class TwTtsReaderView extends ItemView {
 	private currentEl: HTMLElement | null = null;
 	private playPauseBtn!: HTMLElement;
 	private rateLabel!: HTMLElement;
+	private progressLabel!: HTMLElement;
+	private progressInput!: HTMLInputElement;
 	private playing = false;
 	private paused = false;
 	// 連播佇列:單篇 = [該篇];資料夾連播 = 多篇。
 	private queue: TFile[] = [];
 	private queueIndex = 0;
 	private currentFile: TFile | null = null;
-	private rules: PronunciationRule[] = [];
-	/** 「不朗讀的符號」轉成的取代規則,在發音字典之後套用。 */
-	private silentRules: PronunciationRule[] = [];
+
+	private currentSentences: SpeechSentence[] = [];
+	private releaseMediaSession: () => void = () => undefined;
+	private loadGeneration = 0;
 
 	constructor(leaf: WorkspaceLeaf, plugin: TwTtsPlugin) {
 		super(leaf);
@@ -107,15 +114,29 @@ export class TwTtsReaderView extends ItemView {
 		}
 
 		const bar = c.createDiv('tw-tts-controls');
-		this.makeBtn(bar, 'skip-back', STRINGS.prev, () => this.engine?.prev());
+		this.makeBtn(bar, 'rewind', STRINGS.seekBackwardLabel(this.plugin.settings.seekSeconds), () =>
+			this.seekBySeconds(-this.plugin.settings.seekSeconds));
 		this.playPauseBtn = this.makeBtn(bar, 'play', STRINGS.play, () =>
 			this.togglePlay(),
 		);
 		this.makeBtn(bar, 'square', STRINGS.stop, () => this.stop());
-		this.makeBtn(bar, 'skip-forward', STRINGS.next, () => this.engine?.next());
+		this.makeBtn(bar, 'fast-forward', STRINGS.seekForwardLabel(this.plugin.settings.seekSeconds), () =>
+			this.seekBySeconds(this.plugin.settings.seekSeconds));
 		this.renderRateControl(bar);
 
+		const progress = c.createDiv('tw-tts-progress');
+		this.progressInput = progress.createEl('input', {
+			type: 'range',
+			attr: { min: '0', max: '0', value: '0', 'aria-label': STRINGS.progressLabel },
+		});
+		this.progressInput.addEventListener('change', () => {
+			this.engine?.jumpTo(Number(this.progressInput.value));
+			this.setPlayingUI(true, false);
+		});
+		this.progressLabel = progress.createSpan({ text: '0 / 0（0%）' });
+
 		this.listEl = c.createDiv('tw-tts-sentences');
+		c.addEventListener('keydown', (event) => this.handleKeyboard(event));
 		this.showEmpty();
 	}
 
@@ -165,6 +186,7 @@ export class TwTtsReaderView extends ItemView {
 		this.sentenceEls = [];
 		this.currentEl = null;
 		this.listEl.createDiv({ cls: 'tw-tts-empty', text: STRINGS.emptyReader });
+		this.updateProgress(0);
 	}
 
 	/**
@@ -234,9 +256,11 @@ export class TwTtsReaderView extends ItemView {
 
 	/** 讀檔 → 切句 → 開始朗讀;空內容時佇列自動跳下一篇。 */
 	private async loadAndStart(file: TFile, startIndex = 0): Promise<void> {
+		const generation = ++this.loadGeneration;
 		this.currentFile = file;
 		this.updateTitle();
 		const content = await this.app.vault.cachedRead(file);
+		if (generation !== this.loadGeneration) return;
 		const sentences = splitIntoSpeechSentences(
 			content,
 			this.plugin.getMarkdownReaderOptions(),
@@ -255,6 +279,16 @@ export class TwTtsReaderView extends ItemView {
 			new Notice(STRINGS.noContent);
 			this.finishUI();
 			return;
+		}
+		if (startIndex === 0) {
+			const saved = resumableIndex(
+				this.plugin.settings.playbackBookmarks[file.path],
+				sentences.length,
+				file.stat.mtime,
+				speechPlanFingerprint(sentences),
+			);
+			if (saved !== null) startIndex = await this.askResume(saved, sentences.length);
+			if (generation !== this.loadGeneration) return;
 		}
 		if (this.shouldUseEdge()) {
 			this.beginEdgePlayback(sentences, startIndex);
@@ -276,10 +310,9 @@ export class TwTtsReaderView extends ItemView {
 	}
 
 	private beginEdgePlayback(sentences: SpeechSentence[], startIndex: number): void {
+		this.preparePlayback(sentences);
 		this.renderSentenceList(sentences);
-		this.rules = parseRules(this.plugin.settings.pronunciationRules);
-		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
-		const client = new EdgeCliSpeechClient();
+		const client = this.plugin.getOnlineSpeechClient() ?? new EdgeCliSpeechClient();
 		this.engine = new EdgeTtsEngine(
 			client,
 			createEdgeAudio,
@@ -293,25 +326,22 @@ export class TwTtsReaderView extends ItemView {
 				onDone: () => this.onFinished(),
 				onError: (m) => {
 					new Notice(m);
-					this.onFinished();
+					this.onPlaybackError();
 				},
 			},
 		);
 		// Edge 的音檔也應套用既有發音字典與靜音符號，再由引擎逐句生成與播放。
-		const spoken = sentences.map((sentence) => ({
-			...sentence,
-			text: applyPronunciation(applyPronunciation(sentence.text, this.rules), this.silentRules),
-		}));
+		const spoken = this.plugin.prepareSpokenPlan(sentences);
 		this.engine.start(spoken, startIndex);
 		this.setPlayingUI(true, false);
 	}
 
 	private beginAzurePlayback(sentences: SpeechSentence[], startIndex: number): void {
+		this.preparePlayback(sentences);
 		this.renderSentenceList(sentences);
-		this.rules = parseRules(this.plugin.settings.pronunciationRules);
-		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
 		this.engine = new EdgeTtsEngine(
-			new ObsidianAzureSpeechClient({ key: this.plugin.settings.azureKey, region: this.plugin.settings.azureRegion }),
+			this.plugin.getOnlineSpeechClient()
+				?? new ObsidianAzureSpeechClient({ key: this.plugin.getAzureKey(), region: this.plugin.settings.azureRegion }),
 			createEdgeAudio,
 			{ voice: this.plugin.settings.azureVoice, rate: this.plugin.settings.rate, pitch: this.plugin.settings.pitch },
 			{
@@ -319,15 +349,12 @@ export class TwTtsReaderView extends ItemView {
 				onDone: () => this.onFinished(),
 				onError: (m) => {
 					new Notice(m);
-					this.onFinished();
+					this.onPlaybackError();
 				},
 			},
 			'Azure Speech',
 		);
-		const spoken = sentences.map((sentence) => ({
-			...sentence,
-			text: applyPronunciation(applyPronunciation(sentence.text, this.rules), this.silentRules),
-		}));
+		const spoken = this.plugin.prepareSpokenPlan(sentences);
 		this.engine.start(spoken, startIndex);
 		this.setPlayingUI(true, false);
 	}
@@ -357,9 +384,8 @@ export class TwTtsReaderView extends ItemView {
 		startIndex: number,
 		{ synthApi, voice }: ResolvedVoice,
 	): void {
+		this.preparePlayback(sentences);
 		this.renderSentenceList(sentences);
-		this.rules = parseRules(this.plugin.settings.pronunciationRules);
-		this.silentRules = parseSilentSymbols(this.plugin.settings.silentSymbols);
 
 		const synth: TtsSynth = {
 			speak: (u) => synthApi.speak(u as unknown as SpeechSynthesisUtterance),
@@ -368,15 +394,8 @@ export class TwTtsReaderView extends ItemView {
 			resume: () => synthApi.resume(),
 		};
 		// 畫面反白顯示原文,送去朗讀的內容才套設定。
-		// 順序:先發音字典、後刪符號。使用者若特地寫了「○=圈」代表他要唸出來,
-		// 明確指定的唸法應該贏過概括性的靜音清單。
 		const createUtterance = (text: string): TtsUtterance =>
-			new SpeechSynthesisUtterance(
-				applyPronunciation(
-					applyPronunciation(text, this.rules),
-					this.silentRules,
-				),
-			) as unknown as TtsUtterance;
+			new SpeechSynthesisUtterance(this.plugin.applyReadingRules(text)) as unknown as TtsUtterance;
 
 		this.engine = new TtsEngine(
 			{
@@ -392,7 +411,7 @@ export class TwTtsReaderView extends ItemView {
 				onDone: () => this.onFinished(),
 				onError: (m) => {
 					new Notice(m);
-					this.onFinished();
+					this.onPlaybackError();
 				},
 			},
 		);
@@ -414,6 +433,8 @@ export class TwTtsReaderView extends ItemView {
 			});
 			this.sentenceEls.push(el);
 		});
+		this.progressInput.max = String(Math.max(0, sentences.length - 1));
+		this.updateProgress(0);
 	}
 
 	private updateTitle(): void {
@@ -438,6 +459,9 @@ export class TwTtsReaderView extends ItemView {
 		el.addClass('is-reading');
 		el.scrollIntoView({ block: 'center', behavior: 'smooth' });
 		this.currentEl = el;
+		this.updateProgress(index);
+		this.saveBookmark(index);
+		this.updateMediaState(this.playing, this.paused, index);
 	}
 
 	private togglePlay(): void {
@@ -456,13 +480,19 @@ export class TwTtsReaderView extends ItemView {
 	}
 
 	stop(): void {
+		this.loadGeneration++;
 		this.engine?.stop();
 		this.queue = [];
 		this.queueIndex = 0;
+		this.releaseMediaSession();
 		this.finishUI();
 	}
 
 	private onFinished(): void {
+		if (this.currentFile) {
+			delete this.plugin.settings.playbackBookmarks[this.currentFile.path];
+			void this.plugin.saveSettings();
+		}
 		// 佇列還有下一篇 → 接著播
 		if (this.queueIndex + 1 < this.queue.length) {
 			void this.playQueueItem(this.queueIndex + 1);
@@ -483,6 +513,11 @@ export class TwTtsReaderView extends ItemView {
 		this.finishUI();
 	}
 
+	private onPlaybackError(): void {
+		this.releaseMediaSession();
+		this.finishUI();
+	}
+
 	private finishUI(): void {
 		if (this.currentEl) this.currentEl.removeClass('is-reading');
 		this.currentEl = null;
@@ -498,6 +533,105 @@ export class TwTtsReaderView extends ItemView {
 			'aria-label',
 			!playing ? STRINGS.play : paused ? STRINGS.resume : STRINGS.pause,
 		);
+		this.updateMediaState(playing, paused, this.engine?.currentIndex ?? 0);
+	}
+
+	private updateMediaState(playing: boolean, paused: boolean, index: number): void {
+		const progress = estimatedPlanProgress(this.currentSentences, index, this.plugin.settings.rate);
+		updateMediaProgress(
+			this.mediaSession(), progress.position, progress.duration,
+			this.plugin.settings.rate, playing, paused,
+		);
+	}
+
+	private preparePlayback(sentences: SpeechSentence[]): void {
+		this.currentSentences = sentences;
+		this.releaseMediaSession();
+		const metadata = (window as unknown as { MediaMetadata?: MediaMetadataConstructor }).MediaMetadata;
+		this.releaseMediaSession = configureMediaSession(
+			this.mediaSession(),
+			metadata,
+			this.currentFile?.basename ?? STRINGS.viewTitle,
+			{
+				play: () => this.togglePlay(),
+				pause: () => this.togglePlay(),
+				stop: () => this.stop(),
+				seekBackward: () => this.seekBySeconds(-this.plugin.settings.seekSeconds),
+				seekForward: () => this.seekBySeconds(this.plugin.settings.seekSeconds),
+				previous: () => this.engine?.prev(),
+				next: () => this.engine?.next(),
+			},
+		);
+	}
+
+	private mediaSession(): MediaSessionLike | undefined {
+		return (window.navigator as unknown as { mediaSession?: MediaSessionLike }).mediaSession;
+	}
+
+	private seekBySeconds(deltaSeconds: number): void {
+		if (!this.engine || this.currentSentences.length === 0) return;
+		const target = seekSentenceIndex(
+			this.currentSentences,
+			this.engine.currentIndex,
+			deltaSeconds,
+			this.plugin.settings.rate,
+		);
+		this.engine.jumpTo(target);
+		this.setPlayingUI(true, false);
+	}
+
+	private updateProgress(index: number): void {
+		const total = this.currentSentences.length;
+		if (!this.progressInput || !this.progressLabel) return;
+		this.progressInput.value = String(Math.max(0, index));
+		this.progressLabel.setText(
+			total === 0
+				? '0 / 0（0%）'
+				: `${index + 1} / ${total}（${progressPercent(index, total)}%）`,
+		);
+	}
+
+	private saveBookmark(index: number): void {
+		if (!this.currentFile || this.currentSentences.length === 0) return;
+		this.plugin.settings.playbackBookmarks[this.currentFile.path] = {
+			sentenceIndex: index,
+			total: this.currentSentences.length,
+			fileMtime: this.currentFile.stat.mtime,
+			savedAt: Date.now(),
+			planFingerprint: speechPlanFingerprint(this.currentSentences),
+		};
+		void this.plugin.saveSettings();
+	}
+
+	private askResume(index: number, total: number): Promise<number> {
+		return new Promise((resolve) => {
+			this.listEl.empty();
+			const panel = this.listEl.createDiv('tw-tts-resume');
+			panel.createDiv({ text: STRINGS.resumePosition(index + 1, total) });
+			const actions = panel.createDiv('tw-tts-resume-actions');
+			const choose = (value: number): void => {
+				panel.remove();
+				resolve(value);
+			};
+			actions.createEl('button', { text: STRINGS.resumeReading })
+				.addEventListener('click', () => choose(index));
+			actions.createEl('button', { text: STRINGS.restartReading })
+				.addEventListener('click', () => choose(0));
+		});
+	}
+
+	private handleKeyboard(event: KeyboardEvent): void {
+		if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+		if (event.code === 'Space') {
+			event.preventDefault();
+			this.togglePlay();
+		} else if (event.code === 'ArrowLeft') {
+			event.preventDefault();
+			this.seekBySeconds(-this.plugin.settings.seekSeconds);
+		} else if (event.code === 'ArrowRight') {
+			event.preventDefault();
+			this.seekBySeconds(this.plugin.settings.seekSeconds);
+		}
 	}
 
 }

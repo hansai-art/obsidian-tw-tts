@@ -266,6 +266,8 @@ export class EdgeTtsEngine {
 
 	get isPlaying(): boolean { return this.playing; }
 	get isPaused(): boolean { return this.paused; }
+	get currentIndex(): number { return this.index; }
+	get total(): number { return this.sentences.length; }
 
 	start(sentences: SpeechSentenceInput[], fromIndex = 0): void {
 		this.sentences = normalizeSpeechSentences(sentences);

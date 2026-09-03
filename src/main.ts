@@ -6,7 +6,7 @@ import {
 	TFolder,
 	WorkspaceLeaf,
 } from 'obsidian';
-import { STRINGS } from './i18n/zh-tw';
+import { setLocale, STRINGS } from './i18n';
 import {
 	sentenceIndexForPrefix,
 	splitIntoSpeechSentences,
@@ -22,12 +22,35 @@ import {
 } from './settings';
 import { TwTtsReaderView, VIEW_TYPE_TW_TTS } from './reader-view';
 import type { MarkdownReaderOptions } from './markdown-reader';
+import { sanitizeBookmarks } from './playback-progress';
+import {
+	AZURE_SECRET_ID,
+	migratePlaintextSecret,
+	readSecret,
+	secretStorageFromApp,
+	withoutPlaintextSecret,
+} from './secret-storage';
+import { CachingSpeechClient, type AudioCacheStore } from './audio-cache';
+import { ObsidianAudioCache } from './obsidian-audio-cache';
+import { EdgeCliSpeechClient, type EdgeSpeechClient } from './edge-tts';
+import { ObsidianAzureSpeechClient } from './azure-obsidian';
+import { applyPronunciation, parseRules, parseSilentSymbols } from './pronunciation';
+import { applyBuiltinRules } from './traditional-reading';
+import { prepareSpokenSentences, type SpeechSentence } from './speech-plan';
 
 export default class TwTtsPlugin extends Plugin {
 	settings!: TwTtsSettings;
+	private audioCache!: AudioCacheStore;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
+		setLocale(this.settings.interfaceLanguage);
+		const cacheDirectory = `${this.manifest.dir ?? `.obsidian/plugins/${this.manifest.id}`}/audio-cache`;
+		this.audioCache = new ObsidianAudioCache(
+			this.app.vault.adapter,
+			cacheDirectory,
+			() => this.settings.audioCacheMb * 1024 * 1024,
+		);
 
 		// 提前喚醒語音清單(部分平台 getVoices() 首次為空,需非同步載入)
 		window.speechSynthesis?.getVoices();
@@ -98,6 +121,11 @@ export default class TwTtsPlugin extends Plugin {
 			id: 'tts-diagnostics',
 			name: STRINGS.cmdTtsDiagnostics,
 			callback: () => this.showTtsDiagnostics(),
+		});
+		this.addCommand({
+			id: 'export-note-mp3',
+			name: STRINGS.cmdExportMp3,
+			callback: () => void this.exportActiveNoteMp3(),
 		});
 
 		// 檔案總管右鍵資料夾 → 朗讀此資料夾
@@ -258,10 +286,126 @@ export default class TwTtsPlugin extends Plugin {
 	async loadSettings(): Promise<void> {
 		const saved = (await this.loadData()) as Partial<TwTtsSettings> | null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, saved ?? {});
+		this.settings.playbackBookmarks = sanitizeBookmarks(this.settings.playbackBookmarks);
+		this.settings.seekSeconds = Math.min(60, Math.max(5, Number(this.settings.seekSeconds) || 15));
+		const cacheMb = Number(this.settings.audioCacheMb);
+		this.settings.audioCacheMb = Number.isFinite(cacheMb)
+			? Math.min(1000, Math.max(0, cacheMb))
+			: 200;
+		this.settings.interfaceLanguage = this.settings.interfaceLanguage === 'en' ? 'en' : 'zh-TW';
+		for (const key of [
+			'builtinAiTerms', 'builtinMarkdownSymbols', 'builtinMixedText',
+			'naturalizeMath', 'naturalizeTables', 'keyPointsOnly',
+		] as const) {
+			if (typeof this.settings[key] !== 'boolean') this.settings[key] = DEFAULT_SETTINGS[key];
+		}
+		const migration = migratePlaintextSecret(
+			secretStorageFromApp(this.app),
+			AZURE_SECRET_ID,
+			this.settings.azureKey,
+		);
+		this.settings.azureKey = migration.plaintext;
+		if (migration.migrated) await this.saveSettings();
 	}
 
 	async saveSettings(): Promise<void> {
-		await this.saveData(this.settings);
+		// Azure credentials are memory-only on legacy Obsidian and SecretStorage-only
+		// on supported versions. They are never written back to plugin data.
+		const persisted = withoutPlaintextSecret({ ...this.settings });
+		await this.saveData(persisted);
+	}
+
+	getAzureKey(): string {
+		return readSecret(secretStorageFromApp(this.app), AZURE_SECRET_ID, this.settings.azureKey);
+	}
+
+	async setAzureKey(value: string): Promise<void> {
+		const storage = secretStorageFromApp(this.app);
+		if (storage) {
+			storage.setSecret(AZURE_SECRET_ID, value.trim());
+			this.settings.azureKey = '';
+		} else {
+			this.settings.azureKey = value.trim();
+		}
+		await this.saveSettings();
+	}
+
+	getOnlineSpeechClient(): EdgeSpeechClient | null {
+		if (this.settings.provider === 'edge' && Platform.isDesktopApp) {
+			return new CachingSpeechClient('edge', new EdgeCliSpeechClient(), this.audioCache);
+		}
+		if (this.settings.provider === 'azure') {
+			return new CachingSpeechClient(
+				'azure',
+				new ObsidianAzureSpeechClient({ key: this.getAzureKey(), region: this.settings.azureRegion }),
+				this.audioCache,
+			);
+		}
+		return null;
+	}
+
+	async clearAudioCache(): Promise<void> {
+		await this.audioCache.clear();
+	}
+
+	applyReadingRules(text: string): string {
+		const builtIn = applyBuiltinRules(text, {
+			aiTerms: this.settings.builtinAiTerms,
+			markdownSymbols: this.settings.builtinMarkdownSymbols,
+			mixedText: this.settings.builtinMixedText,
+		});
+		return applyPronunciation(
+			applyPronunciation(builtIn, parseRules(this.settings.pronunciationRules)),
+			parseSilentSymbols(this.settings.silentSymbols),
+		);
+	}
+
+	prepareSpokenPlan(sentences: readonly SpeechSentence[]): SpeechSentence[] {
+		return prepareSpokenSentences(sentences, (text) => this.applyReadingRules(text));
+	}
+
+	private async exportActiveNoteMp3(): Promise<void> {
+		const file = this.app.workspace.getActiveFile();
+		if (!file || file.extension !== 'md') {
+			new Notice(STRINGS.noActiveNote);
+			return;
+		}
+		const client = this.getOnlineSpeechClient();
+		if (!client) {
+			new Notice(STRINGS.exportNeedsOnline);
+			return;
+		}
+		const content = await this.app.vault.cachedRead(file);
+		const sentences = splitIntoSpeechSentences(
+			content,
+			this.getMarkdownReaderOptions(),
+			this.getSpeechTimingOptions(),
+		);
+		const spoken = this.prepareSpokenPlan(sentences).map((sentence) => sentence.text);
+		if (spoken.length === 0) {
+			new Notice(STRINGS.noContent);
+			return;
+		}
+		const exportText = spoken.join('。');
+		if (exportText.length > 6000) {
+			new Notice(STRINGS.exportTooLong(exportText.length), 8000);
+			return;
+		}
+		const estimatedMinutes = Math.max(1, Math.ceil(exportText.length / 500));
+		new Notice(STRINGS.exportPreparing(exportText.length, estimatedMinutes), 6000);
+		const voiceSettings = {
+			voice: this.settings.provider === 'azure' ? this.settings.azureVoice : this.settings.edgeVoice,
+			rate: this.settings.rate,
+			pitch: this.settings.pitch,
+		};
+		try {
+			const output = await client.synthesize(exportText, voiceSettings);
+			const path = await this.app.fileManager.getAvailablePathForAttachment(`${file.basename}.mp3`, file.path);
+			await this.app.vault.createBinary(path, await output.arrayBuffer());
+			new Notice(STRINGS.exportSucceeded(path), 8000);
+		} catch {
+			new Notice(STRINGS.exportFailed, 8000);
+		}
 	}
 
 	getMarkdownReaderOptions(): MarkdownReaderOptions {
@@ -271,6 +415,9 @@ export default class TwTtsPlugin extends Plugin {
 			readMath: this.settings.readMath,
 			readTaskStatus: this.settings.readTaskStatus,
 			readFoldedCalloutContent: this.settings.readFoldedCalloutContent,
+			naturalizeMath: this.settings.naturalizeMath,
+			naturalizeTables: this.settings.naturalizeTables,
+			keyPointsOnly: this.settings.keyPointsOnly,
 		};
 	}
 

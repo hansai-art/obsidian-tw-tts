@@ -46,4 +46,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             dist/main.js dist/manifest.json dist/styles.css \
             --title "$GITHUB_REF_NAME" \
+            --prerelease \
             --notes "Automated release $GITHUB_REF_NAME (built, tested and attested in CI)."

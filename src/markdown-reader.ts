@@ -1,4 +1,5 @@
 /** Pure Markdown/Obsidian-to-readable-block parser used by every playback path. */
+import { extractEmphasizedText, naturalizeMath, naturalizeTableRow } from './traditional-reading';
 
 export type ReadableBlockKind =
 	| 'heading'
@@ -22,6 +23,9 @@ export interface MarkdownReaderOptions {
 	readMath: boolean;
 	readTaskStatus: boolean;
 	readFoldedCalloutContent: boolean;
+	naturalizeMath: boolean;
+	naturalizeTables: boolean;
+	keyPointsOnly: boolean;
 }
 
 export const DEFAULT_MARKDOWN_READER_OPTIONS: MarkdownReaderOptions = {
@@ -30,6 +34,9 @@ export const DEFAULT_MARKDOWN_READER_OPTIONS: MarkdownReaderOptions = {
 	readMath: false,
 	readTaskStatus: false,
 	readFoldedCalloutContent: true,
+	naturalizeMath: false,
+	naturalizeTables: false,
+	keyPointsOnly: false,
 };
 
 interface ProtectedText {
@@ -204,7 +211,13 @@ function stripKnownHtml(input: string, prefixMode: boolean): string {
 	return output;
 }
 
-function transformInlineMath(input: string, readMath: boolean, prefixMode: boolean): string {
+function transformInlineMath(
+	input: string,
+	readMath: boolean,
+	naturalize: boolean,
+	prefixMode: boolean,
+	escaped: ProtectedText,
+): string {
 	let output = '';
 	let index = 0;
 	while (index < input.length) {
@@ -223,7 +236,10 @@ function transformInlineMath(input: string, readMath: boolean, prefixMode: boole
 			output += input.slice(index);
 			break;
 		}
-		if (readMath) output += input.slice(index + 1, close);
+		if (readMath) {
+			const math = input.slice(index + 1, close);
+			output += naturalize ? naturalizeMath(restoreProtected(math, escaped)) : math;
+		}
 		index = close + 1;
 	}
 	return output;
@@ -267,7 +283,7 @@ function normalizeInline(input: string, options: MarkdownReaderOptions, prefixMo
 	});
 	text = text.replace(/\^\[[^\]]*\]/g, '');
 	text = text.replace(/\[\^[^\]]+\]/g, '');
-	text = transformInlineMath(text, options.readMath, prefixMode);
+	text = transformInlineMath(text, options.readMath, options.naturalizeMath, prefixMode, escaped);
 	text = transformBareUrls(text, options.readBareUrls);
 	text = text.replace(/(?:^|\s)\^[A-Za-z0-9-]+\s*$/, '');
 	text = text.replace(INLINE_TAG, (_match, lead: string, tag: string) => `${lead}${tag.split('/').join(' ')}`);
@@ -283,13 +299,36 @@ function normalizeInline(input: string, options: MarkdownReaderOptions, prefixMo
 }
 
 function isTableSeparator(line: string): boolean {
-	const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
-	const cells = trimmed.split('|').map((cell) => cell.trim());
+	const cells = tableCells(line);
 	return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
 }
 
+function tableCells(line: string): string[] {
+	const source = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+	const cells: string[] = [];
+	let cell = '';
+	let inCode = false;
+	for (let index = 0; index < source.length; index++) {
+		const char = source[index];
+		if (char === '\\' && source[index + 1] === '|') {
+			cell += '|';
+			index++;
+		} else if (char === '`') {
+			inCode = !inCode;
+			cell += char;
+		} else if (char === '|' && !inCode) {
+			cells.push(cell.trim());
+			cell = '';
+		} else {
+			cell += char;
+		}
+	}
+	cells.push(cell.trim());
+	return cells;
+}
+
 function tableText(line: string): string {
-	return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim()).join('，');
+	return tableCells(line).join('，');
 }
 
 function frontmatterEnd(lines: string[]): number {
@@ -413,7 +452,8 @@ export function parseReadableBlocks(
 					continue;
 				}
 				if (resolved.readMath && trimmed) {
-					const text = normalizeInline(content, { ...resolved, readMath: true }, prefixMode);
+					const normalized = normalizeInline(content, { ...resolved, readMath: true }, prefixMode);
+					const text = resolved.naturalizeMath ? naturalizeMath(normalized) : normalized;
 					if (text) blocks.push({ text, kind: quoteDepth > 0 ? 'quote' : 'paragraph', sourceLine });
 				}
 				continue;
@@ -505,11 +545,17 @@ export function parseReadableBlocks(
 			&& lines[index + 1].quoteDepth === quoteDepth
 			&& trimmed.includes('|')
 			&& isTableSeparator(lines[index + 1].trimmed);
-		const previousIsSeparator = index > 0
+		const previousIsSeparator = trimmed.includes('|') && index > 0
 			&& lines[index - 1].quoteDepth === quoteDepth
 			&& isTableSeparator(lines[index - 1].trimmed);
 		if (hasOuterPipes || startsPipeTable || previousIsSeparator) {
-			const text = normalizeInline(tableText(trimmed), resolved, prefixMode);
+			let readableTable = tableText(trimmed);
+			if (resolved.naturalizeTables && startsPipeTable) {
+				readableTable = `欄位：${tableCells(trimmed).join('、')}`;
+			} else if (resolved.naturalizeTables && previousIsSeparator && index >= 2) {
+				readableTable = naturalizeTableRow(tableCells(lines[index - 2].trimmed), tableCells(trimmed));
+			}
+			const text = normalizeInline(readableTable, resolved, prefixMode);
 			if (text) blocks.push({ text, kind: 'table', sourceLine });
 			continue;
 		}
@@ -524,5 +570,14 @@ export function parseReadableBlocks(
 		const text = normalizeInline(content, resolved, prefixMode);
 		if (text) blocks.push({ text, kind: quoteDepth > 0 ? 'quote' : 'paragraph', sourceLine });
 	}
-	return blocks;
+	let result = blocks;
+	if (resolved.keyPointsOnly) {
+		result = result.flatMap((block) => {
+			if (block.kind === 'heading' || block.kind === 'callout') return [block];
+			const emphasized = extractEmphasizedText(rawLines[block.sourceLine] ?? '');
+			const text = normalizeInline(emphasized, resolved, prefixMode);
+			return text ? [{ ...block, text }] : [];
+		});
+	}
+	return result;
 }
